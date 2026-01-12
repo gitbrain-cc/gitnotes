@@ -208,6 +208,37 @@ fn delete_page(path: String) -> Result<(), String> {
     trash::delete(&file_path).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn rename_page(old_path: String, new_name: String) -> Result<Page, String> {
+    let old_file = PathBuf::from(&old_path);
+
+    if !old_file.exists() {
+        return Err("Page not found".to_string());
+    }
+
+    // Validate name - no filesystem-invalid chars
+    let invalid_chars = ['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
+    if new_name.chars().any(|c| invalid_chars.contains(&c)) {
+        return Err("Invalid characters in name".to_string());
+    }
+
+    let parent = old_file.parent().ok_or("Invalid path")?;
+    let new_filename = format!("{}.md", new_name);
+    let new_path = parent.join(&new_filename);
+
+    if new_path.exists() {
+        return Err("A page with that name already exists".to_string());
+    }
+
+    fs::rename(&old_file, &new_path).map_err(|e| e.to_string())?;
+
+    Ok(Page {
+        name: new_name,
+        path: new_path.to_string_lossy().to_string(),
+        filename: new_filename,
+    })
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchResult {
     pub name: String,
@@ -269,6 +300,7 @@ pub fn run() {
             write_page,
             create_page,
             delete_page,
+            rename_page,
             list_all_pages
         ])
         .run(tauri::generate_context!())
