@@ -246,6 +246,16 @@ html, body {
   background: transparent;
 }
 
+/* Drag and Drop */
+.sidebar li.dragging {
+  opacity: 0.5;
+}
+
+.sidebar li.drop-target {
+  background: var(--accent-color);
+  color: white;
+}
+
 /* Inline Rename */
 .inline-rename {
   width: 100%;

@@ -1,6 +1,6 @@
 import {
   loadSections, loadPages, readPage, setCurrentPage, setStatus, updateWordCount,
-  createPageSmart, deletePage, renamePage, createSection, renameSection, deleteSection
+  createPageSmart, deletePage, renamePage, createSection, renameSection, deleteSection, movePage
 } from './main';
 import { loadContent } from './editor';
 import { showContextMenu } from './contextmenu';
@@ -176,6 +176,35 @@ function renderSections() {
 
     const isProtected = ['1-todo', '1-weeks'].includes(section.name.toLowerCase());
 
+    li.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      li.classList.add('drop-target');
+    });
+    li.addEventListener('dragleave', () => {
+      li.classList.remove('drop-target');
+    });
+    li.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      li.classList.remove('drop-target');
+      const pagePath = e.dataTransfer?.getData('text/plain');
+      if (pagePath && section.path !== currentSection?.path) {
+        try {
+          await movePage(pagePath, section.path);
+          if (currentSection) {
+            const pages = await loadPages(currentSection.path);
+            renderPages(pages);
+            if (pages.length > 0) {
+              await selectPage(pages[0]);
+            } else {
+              setCurrentPage(null);
+              loadContent('');
+            }
+          }
+        } catch (err) {
+          console.error('Move error:', err);
+        }
+      }
+    });
     li.addEventListener('click', () => selectSection(section));
     li.addEventListener('contextmenu', (e) => {
       e.preventDefault();
@@ -215,6 +244,14 @@ function renderPages(pages: Page[]) {
     const li = document.createElement('li');
     li.textContent = page.name;
     li.dataset.path = page.path;
+    li.draggable = true;
+    li.addEventListener('dragstart', (e) => {
+      e.dataTransfer?.setData('text/plain', page.path);
+      li.classList.add('dragging');
+    });
+    li.addEventListener('dragend', () => {
+      li.classList.remove('dragging');
+    });
     li.addEventListener('click', () => selectPage(page));
     li.addEventListener('contextmenu', (e) => {
       e.preventDefault();
