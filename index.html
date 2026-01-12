@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoteOne</title>
+  <link rel="stylesheet" href="/src/styles/main.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sections" class="sidebar">
+      <div class="sidebar-header">Sections</div>
+      <ul id="sections-list"></ul>
+    </aside>
+    <aside id="pages" class="sidebar">
+      <div class="sidebar-header">Pages</div>
+      <ul id="pages-list"></ul>
+    </aside>
+    <main id="editor-container">
+      <div id="editor"></div>
+    </main>
+  </div>
+  <footer id="status-bar">
+    <span id="status-text">Ready</span>
+  </footer>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
