@@ -18,13 +18,13 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg-primary: #1e1e1e;
-    --bg-secondary: #252525;
-    --bg-tertiary: #333333;
-    --text-primary: #e0e0e0;
-    --text-secondary: #a0a0a0;
-    --border-color: #444444;
-    --accent-color: #4dabf7;
+    --bg-primary: #1f1a14;
+    --bg-secondary: #2a231a;
+    --bg-tertiary: #362d21;
+    --text-primary: #e8dfd4;
+    --text-secondary: #9a8b78;
+    --border-color: #362d21;
+    --accent-color: #e8a849;
   }
 }
 
@@ -44,7 +44,6 @@ html, body {
 .sidebar {
   width: var(--sidebar-width-sections);
   background: var(--bg-secondary);
-  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -55,12 +54,12 @@ html, body {
 }
 
 .sidebar-header {
-  padding: 12px 16px;
-  font-size: 12px;
+  padding: 14px 16px 10px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
   color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-color);
 }
 
 .sidebar ul {
@@ -70,10 +69,9 @@ html, body {
 }
 
 .sidebar li {
-  padding: 8px 16px;
+  padding: 10px 16px;
   cursor: pointer;
   font-size: 13px;
-  border-bottom: 1px solid var(--border-color);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -84,8 +82,31 @@ html, body {
 }
 
 .sidebar li.active {
-  background: var(--accent-color);
-  color: white;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-left: 3px solid var(--accent-color);
+  padding-left: 13px;
+}
+
+.sidebar-footer {
+  padding: 8px;
+}
+
+.sidebar-add-btn {
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.sidebar-add-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--accent-color);
 }
 
 /* Editor */
@@ -109,12 +130,11 @@ html, body {
 #status-bar {
   height: 24px;
   background: var(--bg-secondary);
-  border-top: 1px solid var(--border-color);
   padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-secondary);
 }
 
@@ -155,9 +175,8 @@ html, body {
   font-size: 16px;
   border: none;
   outline: none;
-  background: var(--bg-primary);
+  background: var(--bg-secondary);
   color: var(--text-primary);
-  border-bottom: 1px solid var(--border-color);
 }
 
 #quick-switcher-input::placeholder {
@@ -171,12 +190,13 @@ html, body {
 }
 
 #quick-switcher-list li {
-  padding: 12px 16px;
+  padding: 10px 16px;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--border-color);
+  margin: 2px 8px;
+  border-radius: 4px;
 }
 
 #quick-switcher-list li:hover,
