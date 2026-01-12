@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+use chrono::{Datelike, Local};
 
 const PROTECTED_SECTIONS: &[&str] = &["1-todo", "1-weeks"];
 
@@ -195,6 +196,50 @@ fn create_page(section_path: String, name: String) -> Result<Page, String> {
     Ok(Page {
         name,
         path: path.to_string_lossy().to_string(),
+        filename,
+    })
+}
+
+fn get_week_name() -> String {
+    let now = Local::now();
+    format!("{}-{:02}", now.year(), now.iso_week().week())
+}
+
+#[tauri::command]
+fn create_page_smart(section_path: String) -> Result<Page, String> {
+    let path = PathBuf::from(&section_path);
+    let section_name = path.file_name()
+        .ok_or("Invalid path")?
+        .to_string_lossy()
+        .to_lowercase();
+
+    let base_name = if section_name == "1-weeks" {
+        get_week_name()
+    } else {
+        "Untitled".to_string()
+    };
+
+    // Find unique name if exists
+    let mut name = base_name.clone();
+    let mut counter = 1;
+    loop {
+        let filename = format!("{}.md", name);
+        let file_path = path.join(&filename);
+        if !file_path.exists() {
+            break;
+        }
+        counter += 1;
+        name = format!("{} {}", base_name, counter);
+    }
+
+    let filename = format!("{}.md", name);
+    let file_path = path.join(&filename);
+
+    fs::write(&file_path, format!("# {}\n\n", name)).map_err(|e| e.to_string())?;
+
+    Ok(Page {
+        name,
+        path: file_path.to_string_lossy().to_string(),
         filename,
     })
 }
@@ -408,6 +453,7 @@ pub fn run() {
             read_page,
             write_page,
             create_page,
+            create_page_smart,
             delete_page,
             rename_page,
             move_page,
