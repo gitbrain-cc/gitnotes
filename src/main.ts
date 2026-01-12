@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
-import { initSidebar } from './sidebar';
-import { initEditor, loadContent, getContent } from './editor';
+import { initSidebar, navigateToPath } from './sidebar';
+import { initEditor, getContent, focusEditor, getWordCount } from './editor';
+import { initQuickSwitcher, openQuickSwitcher, loadAllPages, closeQuickSwitcher, isQuickSwitcherOpen } from './search';
 
 interface Section {
   name: string;
@@ -47,12 +48,21 @@ export function setStatus(text: string) {
   }
 }
 
+export function updateWordCount() {
+  const countEl = document.getElementById('word-count');
+  if (countEl) {
+    const count = getWordCount();
+    countEl.textContent = `${count} word${count !== 1 ? 's' : ''}`;
+  }
+}
+
 export function scheduleSave() {
   if (saveTimeout) {
     clearTimeout(saveTimeout);
   }
 
   setStatus('Modified...');
+  updateWordCount();
 
   saveTimeout = window.setTimeout(async () => {
     if (currentPage) {
@@ -68,10 +78,50 @@ export function scheduleSave() {
   }, 500);
 }
 
+function handleQuickSwitcherSelect(result: { name: string; path: string; section: string }) {
+  navigateToPath(result.path, result.section);
+}
+
+function setupKeyboardShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    // Cmd+P: Quick switcher
+    if (e.metaKey && e.key === 'p') {
+      e.preventDefault();
+      if (!isQuickSwitcherOpen()) {
+        openQuickSwitcher(handleQuickSwitcherSelect);
+      }
+    }
+
+    // Cmd+1: Focus editor
+    if (e.metaKey && e.key === '1') {
+      e.preventDefault();
+      focusEditor();
+    }
+
+    // Cmd+2: Focus sidebar (sections)
+    if (e.metaKey && e.key === '2') {
+      e.preventDefault();
+      const sectionsList = document.getElementById('sections-list');
+      const firstItem = sectionsList?.querySelector('li') as HTMLElement;
+      firstItem?.focus();
+    }
+
+    // Esc: Close modals
+    if (e.key === 'Escape') {
+      if (isQuickSwitcherOpen()) {
+        closeQuickSwitcher();
+      }
+    }
+  });
+}
+
 async function init() {
   try {
     initEditor();
+    initQuickSwitcher();
+    setupKeyboardShortcuts();
     await initSidebar();
+    await loadAllPages();
     setStatus('Ready');
   } catch (err) {
     console.error('Init error:', err);

@@ -1,4 +1,4 @@
-import { loadSections, loadPages, readPage, setCurrentPage, setStatus } from './main';
+import { loadSections, loadPages, readPage, setCurrentPage, setStatus, updateWordCount } from './main';
 import { loadContent } from './editor';
 
 interface Section {
@@ -76,7 +76,7 @@ function renderPages(pages: Page[]) {
   }
 }
 
-async function selectPage(page: Page) {
+export async function selectPage(page: Page) {
   // Update UI
   const pagesList = document.getElementById('pages-list');
   if (pagesList) {
@@ -91,6 +91,7 @@ async function selectPage(page: Page) {
   try {
     const content = await readPage(page.path);
     loadContent(content);
+    updateWordCount();
     setStatus('Ready');
   } catch (err) {
     console.error('Error loading page:', err);
@@ -100,4 +101,25 @@ async function selectPage(page: Page) {
 
 export function getCurrentSection(): Section | null {
   return currentSection;
+}
+
+export async function navigateToPath(path: string, sectionName: string) {
+  // Find the matching section
+  const section = sections.find(s => s.name === sectionName);
+  if (section && (!currentSection || currentSection.path !== section.path)) {
+    currentSection = section;
+    renderSections();
+    const pages = await loadPages(section.path);
+    renderPages(pages);
+  }
+
+  // Create a Page object and select it
+  const filename = path.split('/').pop() || '';
+  const page: Page = {
+    name: filename.replace('.md', ''),
+    path: path,
+    filename: filename
+  };
+
+  await selectPage(page);
 }

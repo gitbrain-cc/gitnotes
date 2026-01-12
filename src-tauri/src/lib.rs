@@ -197,6 +197,56 @@ fn create_page(section_path: String, name: String) -> Result<Page, String> {
     })
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchResult {
+    pub name: String,
+    pub path: String,
+    pub section: String,
+}
+
+#[tauri::command]
+fn list_all_pages() -> Result<Vec<SearchResult>, String> {
+    let notes_path = get_notes_path();
+
+    if !notes_path.exists() {
+        return Err(format!("Notes directory not found: {:?}", notes_path));
+    }
+
+    let mut results: Vec<SearchResult> = Vec::new();
+
+    let sections = fs::read_dir(&notes_path).map_err(|e| e.to_string())?;
+
+    for section_entry in sections.filter_map(|e| e.ok()) {
+        let section_path = section_entry.path();
+        if !section_path.is_dir() {
+            continue;
+        }
+
+        let section_name = section_entry.file_name().to_string_lossy().to_string();
+        if section_name.starts_with('.') {
+            continue;
+        }
+
+        if let Ok(pages) = fs::read_dir(&section_path) {
+            for page_entry in pages.filter_map(|e| e.ok()) {
+                let page_path = page_entry.path();
+                let filename = page_entry.file_name().to_string_lossy().to_string();
+
+                if page_path.is_file() && filename.ends_with(".md") && !filename.starts_with('.') {
+                    results.push(SearchResult {
+                        name: filename.trim_end_matches(".md").to_string(),
+                        path: page_path.to_string_lossy().to_string(),
+                        section: section_name.clone(),
+                    });
+                }
+            }
+        }
+    }
+
+    results.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(results)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -206,7 +256,8 @@ pub fn run() {
             list_pages,
             read_page,
             write_page,
-            create_page
+            create_page,
+            list_all_pages
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

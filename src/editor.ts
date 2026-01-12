@@ -1,4 +1,4 @@
-import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from '@codemirror/view';
+import { EditorView, keymap, highlightActiveLine, drawSelection } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
@@ -52,7 +52,22 @@ const theme = EditorView.theme({
   '.cm-list': {
     color: '#666',
   },
+  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
+    backgroundColor: '#3390ff',
+  },
+  '.cm-selectionMatch': {
+    backgroundColor: 'rgba(51, 144, 255, 0.3)',
+  },
 });
+
+const darkTheme = EditorView.theme({
+  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
+    backgroundColor: '#3390ff',
+  },
+  '.cm-selectionMatch': {
+    backgroundColor: 'rgba(51, 144, 255, 0.3)',
+  },
+}, { dark: true });
 
 export function initEditor() {
   const container = document.getElementById('editor');
@@ -68,7 +83,6 @@ export function initEditor() {
     state: EditorState.create({
       doc: '',
       extensions: [
-        lineNumbers(),
         highlightActiveLine(),
         drawSelection(),
         history(),
@@ -76,6 +90,7 @@ export function initEditor() {
         syntaxHighlighting(defaultHighlightStyle),
         keymap.of([...defaultKeymap, ...historyKeymap]),
         theme,
+        darkTheme,
         updateListener,
         EditorView.lineWrapping,
       ],
@@ -103,4 +118,11 @@ export function getContent(): string {
 
 export function focusEditor() {
   editorView?.focus();
+}
+
+export function getWordCount(): number {
+  if (!editorView) return 0;
+  const text = editorView.state.doc.toString();
+  const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+  return words.length;
 }
