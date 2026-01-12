@@ -1,8 +1,9 @@
 import {
-  loadSections, loadPages, readPage, setCurrentPage, setStatus, updateWordCount,
-  createPageSmart, deletePage, renamePage, createSection, renameSection, deleteSection, movePage
+  loadSections, loadPages, setCurrentPage, setStatus,
+  createPageSmart, deletePage, renamePage, createSection, renameSection, deleteSection, movePage,
+  loadPageWithHeader
 } from './main';
-import { loadContent } from './editor';
+import { loadContent, updateHeaderData } from './editor';
 import { showContextMenu } from './contextmenu';
 
 interface Section {
@@ -30,6 +31,7 @@ async function handleDeletePage(page: Page) {
       } else {
         setCurrentPage(null);
         loadContent('');
+        updateHeaderData({ title: '', createdDate: null, modifiedInfo: null });
       }
     }
   } catch (err) {
@@ -198,6 +200,7 @@ function renderSections() {
             } else {
               setCurrentPage(null);
               loadContent('');
+              updateHeaderData({ title: '', createdDate: null, modifiedInfo: null });
             }
           }
         } catch (err) {
@@ -230,6 +233,7 @@ async function selectSection(section: Section) {
   } else {
     setCurrentPage(null);
     loadContent('');
+    updateHeaderData({ title: '', createdDate: null, modifiedInfo: null });
     setStatus('No pages in section');
   }
 }
@@ -273,13 +277,10 @@ export async function selectPage(page: Page) {
     });
   }
 
-  setCurrentPage(page);
   setStatus('Loading...');
 
   try {
-    const content = await readPage(page.path);
-    loadContent(content);
-    updateWordCount();
+    await loadPageWithHeader(page);
     setStatus('Ready');
 
     // Auto-trigger rename for Untitled pages

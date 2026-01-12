@@ -1,7 +1,8 @@
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 use serde::{Deserialize, Serialize};
-use chrono::{Datelike, Local};
+use chrono::{Datelike, Local, DateTime, Utc};
 
 const PROTECTED_SECTIONS: &[&str] = &["1-todo", "1-weeks"];
 
@@ -443,6 +444,148 @@ fn delete_section(path: String) -> Result<(), String> {
     trash::delete(&dir_path).map_err(|e| e.to_string())
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FileMetadata {
+    pub created: Option<String>,
+}
+
+#[tauri::command]
+fn get_file_metadata(path: String) -> Result<FileMetadata, String> {
+    let file_path = PathBuf::from(&path);
+
+    if !file_path.exists() {
+        return Ok(FileMetadata { created: None });
+    }
+
+    let metadata = fs::metadata(&file_path).map_err(|e| e.to_string())?;
+
+    let created = metadata.created().ok().map(|time| {
+        let datetime: DateTime<Utc> = time.into();
+        datetime.format("%Y-%m-%dT%H:%M:%S").to_string()
+    });
+
+    Ok(FileMetadata { created })
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GitInfo {
+    pub last_commit_date: Option<String>,
+    pub last_commit_author: Option<String>,
+    pub is_dirty: bool,
+    pub is_tracked: bool,
+    pub is_git_repo: bool,
+}
+
+#[tauri::command]
+fn get_git_info(path: String) -> Result<GitInfo, String> {
+    let file_path = PathBuf::from(&path);
+    let parent = file_path.parent().unwrap_or(&file_path);
+
+    // Check if in a git repo
+    let repo_check = Command::new("git")
+        .args(["rev-parse", "--git-dir"])
+        .current_dir(parent)
+        .output();
+
+    let is_git_repo = repo_check.map(|o| o.status.success()).unwrap_or(false);
+
+    if !is_git_repo {
+        return Ok(GitInfo {
+            last_commit_date: None,
+            last_commit_author: None,
+            is_dirty: false,
+            is_tracked: false,
+            is_git_repo: false,
+        });
+    }
+
+    // Check if file is tracked
+    let tracked_check = Command::new("git")
+        .args(["ls-files", &path])
+        .current_dir(parent)
+        .output();
+
+    let is_tracked = tracked_check
+        .map(|o| o.status.success() && !o.stdout.is_empty())
+        .unwrap_or(false);
+
+    // Check if file has uncommitted changes
+    let dirty_check = Command::new("git")
+        .args(["diff", "--name-only", &path])
+        .current_dir(parent)
+        .output();
+
+    let staged_check = Command::new("git")
+        .args(["diff", "--cached", "--name-only", &path])
+        .current_dir(parent)
+        .output();
+
+    let is_dirty = dirty_check.map(|o| !o.stdout.is_empty()).unwrap_or(false)
+        || staged_check.map(|o| !o.stdout.is_empty()).unwrap_or(false)
+        || !is_tracked;
+
+    // Get last commit info
+    let log_output = Command::new("git")
+        .args(["log", "-1", "--format=%aI|%an", "--", &path])
+        .current_dir(parent)
+        .output();
+
+    let (last_commit_date, last_commit_author) = match log_output {
+        Ok(output) if output.status.success() => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let parts: Vec<&str> = stdout.trim().split('|').collect();
+            if parts.len() == 2 {
+                (Some(parts[0].to_string()), Some(parts[1].to_string()))
+            } else {
+                (None, None)
+            }
+        }
+        _ => (None, None),
+    };
+
+    Ok(GitInfo {
+        last_commit_date,
+        last_commit_author,
+        is_dirty,
+        is_tracked,
+        is_git_repo,
+    })
+}
+
+#[tauri::command]
+fn git_commit(path: String, message: String) -> Result<(), String> {
+    let file_path = PathBuf::from(&path);
+    let parent = file_path.parent().unwrap_or(&file_path);
+
+    // Add the file
+    let add_result = Command::new("git")
+        .args(["add", &path])
+        .current_dir(parent)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !add_result.status.success() {
+        return Err(String::from_utf8_lossy(&add_result.stderr).to_string());
+    }
+
+    // Commit
+    let commit_result = Command::new("git")
+        .args(["commit", "-m", &message, "--", &path])
+        .current_dir(parent)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !commit_result.status.success() {
+        let stderr = String::from_utf8_lossy(&commit_result.stderr);
+        // "nothing to commit" is not an error for us
+        if !stderr.contains("nothing to commit") {
+            return Err(stderr.to_string());
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -460,7 +603,10 @@ pub fn run() {
             list_all_pages,
             create_section,
             rename_section,
-            delete_section
+            delete_section,
+            get_file_metadata,
+            get_git_info,
+            git_commit
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

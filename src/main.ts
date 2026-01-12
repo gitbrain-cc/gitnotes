@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { initSidebar, navigateToPath } from './sidebar';
-import { initEditor, getContent, focusEditor, getWordCount } from './editor';
+import { initEditor, getContent, focusEditor, getWordCount, updateHeaderData, loadContent } from './editor';
 import { initQuickSwitcher, openQuickSwitcher, loadAllPages, closeQuickSwitcher, isQuickSwitcherOpen } from './search';
+import { parseFrontMatter, serializeFrontMatter, FrontMatter } from './frontmatter';
 
 interface Section {
   name: string;
@@ -14,7 +15,21 @@ interface Page {
   filename: string;
 }
 
+interface FileMetadata {
+  created: string | null;
+}
+
+interface GitInfo {
+  last_commit_date: string | null;
+  last_commit_author: string | null;
+  is_dirty: boolean;
+  is_tracked: boolean;
+  is_git_repo: boolean;
+}
+
 let currentPage: Page | null = null;
+let currentFrontMatter: FrontMatter = {};
+let currentBody: string = '';
 let saveTimeout: number | null = null;
 
 export async function loadSections(): Promise<Section[]> {
@@ -31,6 +46,18 @@ export async function readPage(path: string): Promise<string> {
 
 export async function writePage(path: string, content: string): Promise<void> {
   return await invoke('write_page', { path, content });
+}
+
+export async function getFileMetadata(path: string): Promise<FileMetadata> {
+  return await invoke('get_file_metadata', { path });
+}
+
+export async function getGitInfo(path: string): Promise<GitInfo> {
+  return await invoke('get_git_info', { path });
+}
+
+export async function gitCommit(path: string, message: string): Promise<void> {
+  return await invoke('git_commit', { path, message });
 }
 
 export async function createPageSmart(sectionPath: string): Promise<Page> {
@@ -84,6 +111,110 @@ export function updateWordCount() {
   }
 }
 
+// Format a date as relative time
+function formatRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+  const diffWeek = Math.floor(diffDay / 7);
+  const diffMonth = Math.floor(diffDay / 30);
+
+  if (diffSec < 60) return 'just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHour < 24) return `${diffHour}h ago`;
+  if (diffDay < 7) return `${diffDay}d ago`;
+  if (diffWeek < 4) return `${diffWeek}w ago`;
+  if (diffMonth < 12) return `${diffMonth}mo ago`;
+
+  return date.toLocaleDateString();
+}
+
+// Build the modified info string based on git status
+function buildModifiedInfo(gitInfo: GitInfo): string | null {
+  if (!gitInfo.is_git_repo) {
+    return null;
+  }
+
+  if (!gitInfo.is_tracked) {
+    return 'New · not in git';
+  }
+
+  if (gitInfo.is_dirty) {
+    return 'Modified · not committed';
+  }
+
+  if (gitInfo.last_commit_date && gitInfo.last_commit_author) {
+    const relativeTime = formatRelativeTime(gitInfo.last_commit_date);
+    return `${gitInfo.last_commit_author}, ${relativeTime}`;
+  }
+
+  return null;
+}
+
+// Load page and update header
+export async function loadPageWithHeader(page: Page) {
+  currentPage = page;
+
+  // Read raw content
+  const rawContent = await readPage(page.path);
+
+  // Parse front matter
+  const parsed = parseFrontMatter(rawContent);
+  currentFrontMatter = parsed.frontmatter;
+  currentBody = parsed.body;
+
+  // Check if we need to migrate (no created date in front matter)
+  if (!currentFrontMatter.created) {
+    const metadata = await getFileMetadata(page.path);
+    if (metadata.created) {
+      currentFrontMatter.created = metadata.created;
+    } else {
+      // Fallback to now
+      currentFrontMatter.created = new Date().toISOString().slice(0, 19);
+    }
+  }
+
+  // Get git info
+  const gitInfo = await getGitInfo(page.path);
+
+  // Build header data
+  const title = page.name; // filename without .md
+  const createdDate = currentFrontMatter.created
+    ? formatRelativeTime(currentFrontMatter.created)
+    : null;
+  const modifiedInfo = buildModifiedInfo(gitInfo);
+
+  // Load content into editor (full content with front matter - editor will hide it)
+  const fullContent = serializeFrontMatter(currentFrontMatter, currentBody);
+  loadContent(fullContent);
+
+  // Update header display
+  updateHeaderData({ title, createdDate, modifiedInfo });
+
+  updateWordCount();
+}
+
+// Refresh just the header (after save/commit)
+async function refreshHeader() {
+  if (!currentPage) return;
+
+  const gitInfo = await getGitInfo(currentPage.path);
+  const createdDate = currentFrontMatter.created
+    ? formatRelativeTime(currentFrontMatter.created)
+    : null;
+  const modifiedInfo = buildModifiedInfo(gitInfo);
+
+  updateHeaderData({
+    title: currentPage.name,
+    createdDate,
+    modifiedInfo,
+  });
+}
+
 export function scheduleSave() {
   if (saveTimeout) {
     clearTimeout(saveTimeout);
@@ -95,9 +226,30 @@ export function scheduleSave() {
   saveTimeout = window.setTimeout(async () => {
     if (currentPage) {
       try {
-        const content = getContent();
-        await writePage(currentPage.path, content);
+        const fullContent = getContent();
+
+        // Parse to update our stored body (front matter stays the same)
+        const parsed = parseFrontMatter(fullContent);
+        currentBody = parsed.body;
+
+        // Rebuild with current front matter
+        const contentToSave = serializeFrontMatter(currentFrontMatter, currentBody);
+
+        await writePage(currentPage.path, contentToSave);
         setStatus('Saved');
+
+        // Auto-commit
+        try {
+          const filename = currentPage.filename.replace('.md', '');
+          await gitCommit(currentPage.path, `Update ${filename}`);
+          setStatus('Committed');
+        } catch {
+          // Git commit failed - that's ok, file is still saved
+          setStatus('Saved (not committed)');
+        }
+
+        // Refresh header to show new git status
+        await refreshHeader();
       } catch (err) {
         setStatus('Error saving');
         console.error('Save error:', err);
