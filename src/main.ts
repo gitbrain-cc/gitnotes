@@ -33,6 +33,34 @@ export async function writePage(path: string, content: string): Promise<void> {
   return await invoke('write_page', { path, content });
 }
 
+export async function createPageSmart(sectionPath: string): Promise<Page> {
+  return await invoke('create_page_smart', { sectionPath });
+}
+
+export async function deletePage(path: string): Promise<void> {
+  return await invoke('delete_page', { path });
+}
+
+export async function renamePage(oldPath: string, newName: string): Promise<Page> {
+  return await invoke('rename_page', { oldPath, newName });
+}
+
+export async function movePage(path: string, newSectionPath: string): Promise<Page> {
+  return await invoke('move_page', { path, newSectionPath });
+}
+
+export async function createSection(name: string): Promise<Section> {
+  return await invoke('create_section', { name });
+}
+
+export async function renameSection(path: string, newName: string): Promise<Section> {
+  return await invoke('rename_section', { path, newName });
+}
+
+export async function deleteSection(path: string): Promise<void> {
+  return await invoke('delete_section', { path });
+}
+
 export function setCurrentPage(page: Page | null) {
   currentPage = page;
 }
