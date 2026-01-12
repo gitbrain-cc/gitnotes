@@ -2,6 +2,8 @@ use std::fs;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
+const PROTECTED_SECTIONS: &[&str] = &["1-todo", "1-weeks"];
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Section {
     pub name: String,
@@ -317,6 +319,85 @@ fn list_all_pages() -> Result<Vec<SearchResult>, String> {
     Ok(results)
 }
 
+#[tauri::command]
+fn create_section(name: String) -> Result<Section, String> {
+    let invalid_chars = ['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
+    if name.chars().any(|c| invalid_chars.contains(&c)) {
+        return Err("Invalid characters in name".to_string());
+    }
+
+    let notes_path = get_notes_path();
+    let section_path = notes_path.join(&name);
+
+    if section_path.exists() {
+        return Err("Section already exists".to_string());
+    }
+
+    fs::create_dir(&section_path).map_err(|e| e.to_string())?;
+
+    Ok(Section {
+        name,
+        path: section_path.to_string_lossy().to_string(),
+    })
+}
+
+#[tauri::command]
+fn rename_section(path: String, new_name: String) -> Result<Section, String> {
+    let old_dir = PathBuf::from(&path);
+
+    if !old_dir.exists() {
+        return Err("Section not found".to_string());
+    }
+
+    let old_name = old_dir.file_name()
+        .ok_or("Invalid path")?
+        .to_string_lossy()
+        .to_lowercase();
+
+    if PROTECTED_SECTIONS.contains(&old_name.as_str()) {
+        return Err("This section cannot be renamed".to_string());
+    }
+
+    let invalid_chars = ['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
+    if new_name.chars().any(|c| invalid_chars.contains(&c)) {
+        return Err("Invalid characters in name".to_string());
+    }
+
+    let parent = old_dir.parent().ok_or("Invalid path")?;
+    let new_path = parent.join(&new_name);
+
+    if new_path.exists() {
+        return Err("A section with that name already exists".to_string());
+    }
+
+    fs::rename(&old_dir, &new_path).map_err(|e| e.to_string())?;
+
+    Ok(Section {
+        name: new_name,
+        path: new_path.to_string_lossy().to_string(),
+    })
+}
+
+#[tauri::command]
+fn delete_section(path: String) -> Result<(), String> {
+    let dir_path = PathBuf::from(&path);
+
+    if !dir_path.exists() {
+        return Err("Section not found".to_string());
+    }
+
+    let name = dir_path.file_name()
+        .ok_or("Invalid path")?
+        .to_string_lossy()
+        .to_lowercase();
+
+    if PROTECTED_SECTIONS.contains(&name.as_str()) {
+        return Err("This section cannot be deleted".to_string());
+    }
+
+    trash::delete(&dir_path).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -330,7 +411,10 @@ pub fn run() {
             delete_page,
             rename_page,
             move_page,
-            list_all_pages
+            list_all_pages,
+            create_section,
+            rename_section,
+            delete_section
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
