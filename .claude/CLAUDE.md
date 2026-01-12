@@ -32,14 +32,14 @@ Working:
 - Section/page navigation
 - Markdown editing with auto-save
 - Custom ordering
-- Dark mode
+- Dark mode (warm orange theme)
+- Page management (create/rename/delete/move)
+- Quick switcher (Cmd+P)
 
 TODO:
-- Quick switcher (Cmd+P)
 - Full-text search (Cmd+Shift+F)
 - Inline markdown rendering
-- Keyboard shortcuts
-- Create/rename/delete pages
+- More keyboard shortcuts
 
 ## Notes Directory
 
