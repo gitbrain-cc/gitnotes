@@ -1,6 +1,6 @@
 import {
   loadSections, loadPages, readPage, setCurrentPage, setStatus, updateWordCount,
-  createPageSmart, deletePage, renamePage, createSection
+  createPageSmart, deletePage, renamePage, createSection, renameSection, deleteSection
 } from './main';
 import { loadContent } from './editor';
 import { showContextMenu } from './contextmenu';
@@ -74,6 +74,54 @@ function startRename(page: Page, li: HTMLElement) {
   });
 }
 
+async function handleDeleteSection(section: Section) {
+  try {
+    await deleteSection(section.path);
+    sections = await loadSections();
+    renderSections();
+    if (sections.length > 0) {
+      await selectSection(sections[0]);
+    }
+  } catch (err) {
+    console.error('Delete section error:', err);
+  }
+}
+
+function startSectionRename(section: Section, li: HTMLElement) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = section.name;
+  input.className = 'inline-rename';
+
+  li.textContent = '';
+  li.appendChild(input);
+  input.focus();
+  input.select();
+
+  const finishRename = async () => {
+    const newName = input.value.trim();
+    if (newName && newName !== section.name) {
+      try {
+        await renameSection(section.path, newName);
+      } catch (err) {
+        console.error('Rename error:', err);
+      }
+    }
+    sections = await loadSections();
+    renderSections();
+  };
+
+  input.addEventListener('blur', finishRename);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      input.blur();
+    } else if (e.key === 'Escape') {
+      input.value = section.name;
+      input.blur();
+    }
+  });
+}
+
 export async function initSidebar() {
   sections = await loadSections();
   renderSections();
@@ -126,7 +174,16 @@ function renderSections() {
       li.classList.add('active');
     }
 
+    const isProtected = ['1-todo', '1-weeks'].includes(section.name.toLowerCase());
+
     li.addEventListener('click', () => selectSection(section));
+    li.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showContextMenu(e.clientX, e.clientY, [
+        { label: 'Rename', action: () => startSectionRename(section, li), disabled: isProtected },
+        { label: 'Delete', action: () => handleDeleteSection(section), disabled: isProtected }
+      ]);
+    });
     list.appendChild(li);
   }
 }
@@ -187,6 +244,14 @@ export async function selectPage(page: Page) {
     loadContent(content);
     updateWordCount();
     setStatus('Ready');
+
+    // Auto-trigger rename for Untitled pages
+    if (page.name === 'Untitled' || page.name.startsWith('Untitled ')) {
+      const li = document.querySelector(`[data-path="${page.path}"]`) as HTMLElement;
+      if (li && !li.querySelector('input')) {
+        startRename(page, li);
+      }
+    }
   } catch (err) {
     console.error('Error loading page:', err);
     setStatus('Error loading page');
