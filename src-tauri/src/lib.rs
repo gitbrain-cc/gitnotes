@@ -239,6 +239,34 @@ fn rename_page(old_path: String, new_name: String) -> Result<Page, String> {
     })
 }
 
+#[tauri::command]
+fn move_page(path: String, new_section_path: String) -> Result<Page, String> {
+    let old_file = PathBuf::from(&path);
+
+    if !old_file.exists() {
+        return Err("Page not found".to_string());
+    }
+
+    let filename = old_file.file_name()
+        .ok_or("Invalid filename")?
+        .to_string_lossy()
+        .to_string();
+
+    let new_path = PathBuf::from(&new_section_path).join(&filename);
+
+    if new_path.exists() {
+        return Err("A page with that name already exists in the target section".to_string());
+    }
+
+    fs::rename(&old_file, &new_path).map_err(|e| e.to_string())?;
+
+    Ok(Page {
+        name: filename.trim_end_matches(".md").to_string(),
+        path: new_path.to_string_lossy().to_string(),
+        filename,
+    })
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchResult {
     pub name: String,
@@ -301,6 +329,7 @@ pub fn run() {
             create_page,
             delete_page,
             rename_page,
+            move_page,
             list_all_pages
         ])
         .run(tauri::generate_context!())
