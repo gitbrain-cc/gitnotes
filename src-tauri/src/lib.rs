@@ -197,6 +197,17 @@ fn create_page(section_path: String, name: String) -> Result<Page, String> {
     })
 }
 
+#[tauri::command]
+fn delete_page(path: String) -> Result<(), String> {
+    let file_path = PathBuf::from(&path);
+
+    if !file_path.exists() {
+        return Err("Page not found".to_string());
+    }
+
+    trash::delete(&file_path).map_err(|e| e.to_string())
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SearchResult {
     pub name: String,
@@ -257,6 +268,7 @@ pub fn run() {
             read_page,
             write_page,
             create_page,
+            delete_page,
             list_all_pages
         ])
         .run(tauri::generate_context!())
