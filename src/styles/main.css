@@ -117,6 +117,28 @@ html, body {
   overflow: hidden;
 }
 
+#note-header {
+  padding: 16px 20px 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  display: none;
+}
+
+#note-header.visible {
+  display: block;
+}
+
+#note-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: var(--text-primary);
+}
+
+#note-header .meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
 #editor {
   flex: 1;
   overflow: auto;
@@ -124,6 +146,11 @@ html, body {
 
 #editor .cm-editor {
   height: 100%;
+}
+
+#editor .cm-editor ::selection {
+  background: transparent;
+  color: var(--accent-color);
 }
 
 /* Status bar */

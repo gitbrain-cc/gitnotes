@@ -1,12 +1,13 @@
-import { EditorView, keymap, highlightActiveLine, drawSelection, Decoration, DecorationSet, WidgetType } from '@codemirror/view';
-import { EditorState, StateField, StateEffect, RangeSetBuilder } from '@codemirror/state';
+import { EditorView, keymap, ViewPlugin, ViewUpdate, Decoration, DecorationSet, WidgetType } from '@codemirror/view';
+import { EditorState } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
 import { scheduleSave } from './main';
-import { getFrontMatterRange } from './frontmatter';
+import { FrontMatter, parseFrontMatter, serializeFrontMatter } from './frontmatter';
 
 let editorView: EditorView | null = null;
+let currentFrontMatter: FrontMatter = {};
 
 // Header data that will be displayed
 export interface HeaderData {
@@ -15,117 +16,19 @@ export interface HeaderData {
   modifiedInfo: string | null;
 }
 
-// Effect to update header data
-const setHeaderData = StateEffect.define<HeaderData>();
-
-// Widget that renders the note header
-class NoteHeaderWidget extends WidgetType {
-  constructor(readonly data: HeaderData) {
-    super();
-  }
-
-  toDOM() {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'note-header';
-
-    const title = document.createElement('h1');
-    title.className = 'note-header-title';
-    title.textContent = this.data.title;
-    wrapper.appendChild(title);
-
-    const meta = document.createElement('div');
-    meta.className = 'note-header-meta';
-
-    const parts: string[] = [];
-    if (this.data.createdDate) {
-      parts.push(`Created ${this.data.createdDate}`);
-    }
-    if (this.data.modifiedInfo) {
-      parts.push(this.data.modifiedInfo);
-    }
-
-    meta.textContent = parts.join(' · ');
-    wrapper.appendChild(meta);
-
-    return wrapper;
-  }
-
-  eq(other: NoteHeaderWidget) {
-    return (
-      this.data.title === other.data.title &&
-      this.data.createdDate === other.data.createdDate &&
-      this.data.modifiedInfo === other.data.modifiedInfo
-    );
-  }
-
-  ignoreEvent() {
-    return true;
-  }
-}
-
-// StateField to manage decorations
-const headerField = StateField.define<{ decorations: DecorationSet; data: HeaderData }>({
-  create() {
-    return {
-      decorations: Decoration.none,
-      data: { title: '', createdDate: null, modifiedInfo: null },
-    };
-  },
-
-  update(value, tr) {
-    let data = value.data;
-
-    // Check for header data updates
-    for (const effect of tr.effects) {
-      if (effect.is(setHeaderData)) {
-        data = effect.value;
-      }
-    }
-
-    // Rebuild decorations if document changed or header data changed
-    if (tr.docChanged || data !== value.data) {
-      const builder = new RangeSetBuilder<Decoration>();
-      const doc = tr.state.doc.toString();
-      const fmRange = getFrontMatterRange(doc);
-
-      // Add header widget at position 0
-      if (data.title) {
-        builder.add(0, 0, Decoration.widget({
-          widget: new NoteHeaderWidget(data),
-          side: -1,
-          block: true,
-        }));
-      }
-
-      // Hide front matter if present
-      if (fmRange) {
-        builder.add(fmRange.start, fmRange.end, Decoration.replace({}));
-      }
-
-      return { decorations: builder.finish(), data };
-    }
-
-    return { decorations: value.decorations, data };
-  },
-
-  provide: (field) => EditorView.decorations.from(field, (value) => value.decorations),
-});
-
 const theme = EditorView.theme({
   '&': {
     height: '100%',
-    fontSize: '14px',
+    fontSize: '13px',
   },
   '.cm-scroller': {
-    fontFamily: '"SF Mono", Menlo, Monaco, "Courier New", monospace',
-    lineHeight: '1.6',
-    padding: '16px',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    lineHeight: '1.7',
+    letterSpacing: '0.01em',
   },
   '.cm-content': {
-    caretColor: '#333',
-  },
-  '.cm-line': {
-    padding: '0 4px',
+    caretColor: 'var(--text-primary)',
+    padding: '16px',
   },
   // Markdown styling
   '.cm-header-1': {
@@ -153,47 +56,62 @@ const theme = EditorView.theme({
   '.cm-url': {
     color: '#666',
   },
-  '.cm-list': {
-    color: '#666',
+  '.cm-cursor': {
+    borderLeftColor: 'var(--text-primary)',
   },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
-    backgroundColor: '#3390ff',
-  },
-  '.cm-selectionMatch': {
-    backgroundColor: 'rgba(51, 144, 255, 0.3)',
-  },
-  // Note header styling
-  '.note-header': {
-    padding: '0 4px 24px 4px',
-    borderBottom: '1px solid var(--border-color)',
-    marginBottom: '16px',
-  },
-  '.note-header-title': {
-    fontSize: '28px',
-    fontWeight: '600',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    margin: '0 0 4px 0',
-    color: 'var(--text-primary)',
-  },
-  '.note-header-meta': {
-    fontSize: '12px',
-    color: 'var(--text-secondary)',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  '.selection-bracket': {
+    color: '#e85d4c',
+    fontWeight: 'bold',
   },
 });
 
-const darkTheme = EditorView.theme({
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
-    backgroundColor: '#3390ff',
-  },
-  '.cm-selectionMatch': {
-    backgroundColor: 'rgba(51, 144, 255, 0.3)',
-  },
-}, { dark: true });
+// Widget for selection brackets
+class BracketWidget extends WidgetType {
+  constructor(readonly bracket: string) {
+    super();
+  }
+  toDOM() {
+    const span = document.createElement('span');
+    span.className = 'selection-bracket';
+    span.textContent = this.bracket;
+    return span;
+  }
+}
+
+// Plugin to show brackets around selection
+const selectionBrackets = ViewPlugin.fromClass(class {
+  decorations: DecorationSet = Decoration.none;
+
+  constructor(view: EditorView) {
+    this.decorations = this.buildDecorations(view);
+  }
+
+  update(update: ViewUpdate) {
+    if (update.selectionSet || update.docChanged) {
+      this.decorations = this.buildDecorations(update.view);
+    }
+  }
+
+  buildDecorations(view: EditorView): DecorationSet {
+    const sel = view.state.selection.main;
+    if (sel.empty) return Decoration.none;
+
+    return Decoration.set([
+      Decoration.widget({ widget: new BracketWidget('['), side: -1 }).range(sel.from),
+      Decoration.widget({ widget: new BracketWidget(']'), side: 1 }).range(sel.to),
+    ]);
+  }
+}, { decorations: v => v.decorations });
 
 export function initEditor() {
   const container = document.getElementById('editor');
   if (!container) return;
+
+  // Clean up existing editor (for hot reload)
+  if (editorView) {
+    editorView.destroy();
+    editorView = null;
+  }
 
   const updateListener = EditorView.updateListener.of((update) => {
     if (update.docChanged) {
@@ -205,15 +123,12 @@ export function initEditor() {
     state: EditorState.create({
       doc: '',
       extensions: [
-        highlightActiveLine(),
-        drawSelection(),
         history(),
         markdown(),
         syntaxHighlighting(defaultHighlightStyle),
         keymap.of([...defaultKeymap, ...historyKeymap]),
         theme,
-        darkTheme,
-        headerField,
+        selectionBrackets,
         updateListener,
         EditorView.lineWrapping,
       ],
@@ -225,18 +140,24 @@ export function initEditor() {
 export function loadContent(content: string) {
   if (!editorView) return;
 
+  // Parse and store front matter, load only body into editor
+  const parsed = parseFrontMatter(content);
+  currentFrontMatter = parsed.frontmatter;
+
   editorView.dispatch({
     changes: {
       from: 0,
       to: editorView.state.doc.length,
-      insert: content,
+      insert: parsed.body,
     },
   });
 }
 
 export function getContent(): string {
   if (!editorView) return '';
-  return editorView.state.doc.toString();
+  const body = editorView.state.doc.toString();
+  // Serialize front matter back with the body
+  return serializeFrontMatter(currentFrontMatter, body);
 }
 
 export function focusEditor() {
@@ -251,8 +172,26 @@ export function getWordCount(): number {
 }
 
 export function updateHeaderData(data: HeaderData) {
-  if (!editorView) return;
-  editorView.dispatch({
-    effects: setHeaderData.of(data),
-  });
+  const header = document.getElementById('note-header');
+  if (!header) return;
+
+  if (!data.title) {
+    header.classList.remove('visible');
+    return;
+  }
+
+  header.classList.add('visible');
+
+  const parts: string[] = [];
+  if (data.createdDate) {
+    parts.push(`Created ${data.createdDate}`);
+  }
+  if (data.modifiedInfo) {
+    parts.push(data.modifiedInfo);
+  }
+
+  header.innerHTML = `
+    <h1>${data.title}</h1>
+    <div class="meta">${parts.join(' · ')}</div>
+  `;
 }
