@@ -1,8 +1,12 @@
+mod search;
+
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use chrono::{Datelike, Local, DateTime, Utc};
+use search::{SearchIndex, SearchResult as TantivySearchResult};
 
 const PROTECTED_SECTIONS: &[&str] = &["1-todo", "1-weeks"];
 
@@ -44,6 +48,11 @@ impl Default for OrderConfig {
             pinned: vec![],
         }
     }
+}
+
+struct AppState {
+    search_index: Arc<SearchIndex>,
+    notes_path: PathBuf,
 }
 
 fn get_notes_path() -> PathBuf {
@@ -553,6 +562,15 @@ fn get_git_info(path: String) -> Result<GitInfo, String> {
 }
 
 #[tauri::command]
+fn search_notes(query: String, state: tauri::State<AppState>) -> Result<Vec<TantivySearchResult>, String> {
+    if query.len() < 3 {
+        // For short queries, return empty - frontend handles filename matching
+        return Ok(vec![]);
+    }
+    state.search_index.search(&query, 20)
+}
+
+#[tauri::command]
 fn git_commit(path: String, message: String) -> Result<(), String> {
     let file_path = PathBuf::from(&path);
     let parent = file_path.parent().unwrap_or(&file_path);
@@ -588,8 +606,31 @@ fn git_commit(path: String, message: String) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let notes_path = get_notes_path();
+
+    // Initialize search index
+    let index_path = dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("noteone")
+        .join("search-index");
+
+    let search_index = Arc::new(
+        SearchIndex::new(&index_path, &notes_path)
+            .expect("Failed to create search index")
+    );
+
+    // Start file watcher
+    SearchIndex::start_watcher(Arc::clone(&search_index), notes_path.clone())
+        .expect("Failed to start file watcher");
+
+    let app_state = AppState {
+        search_index,
+        notes_path,
+    };
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             list_sections,
             list_pages,
@@ -606,7 +647,8 @@ pub fn run() {
             delete_section,
             get_file_metadata,
             get_git_info,
-            git_commit
+            git_commit,
+            search_notes,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

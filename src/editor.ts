@@ -195,3 +195,19 @@ export function updateHeaderData(data: HeaderData) {
     <div class="meta">${parts.join(' · ')}</div>
   `;
 }
+
+export function scrollToLine(lineNumber: number) {
+  if (!editorView) return;
+
+  // CodeMirror lines are 1-based, but our match_line from search is 0-based
+  const line = editorView.state.doc.line(Math.min(lineNumber + 1, editorView.state.doc.lines));
+
+  editorView.dispatch({
+    effects: EditorView.scrollIntoView(line.from, { y: 'center' })
+  });
+
+  // Briefly highlight the line (optional - adds visual feedback)
+  editorView.dispatch({
+    selection: { anchor: line.from }
+  });
+}

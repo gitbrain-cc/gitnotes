@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { initSidebar, navigateToPath } from './sidebar';
 import { initEditor, getContent, focusEditor, getWordCount, updateHeaderData, loadContent } from './editor';
-import { initQuickSwitcher, openQuickSwitcher, loadAllPages, closeQuickSwitcher, isQuickSwitcherOpen } from './search';
+import { initSearchBar, openSearchBar, loadAllPages, closeSearchBar, isSearchBarOpen, addRecentFile } from './search-bar';
 import { parseFrontMatter, serializeFrontMatter, FrontMatter } from './frontmatter';
 
 interface Section {
@@ -196,6 +196,9 @@ export async function loadPageWithHeader(page: Page) {
   updateHeaderData({ title, createdDate, modifiedInfo });
 
   updateWordCount();
+
+  // Track as recent file
+  addRecentFile(page.path);
 }
 
 // Refresh just the header (after save/commit)
@@ -258,17 +261,18 @@ export function scheduleSave() {
   }, 500);
 }
 
-function handleQuickSwitcherSelect(result: { name: string; path: string; section: string }) {
-  navigateToPath(result.path, result.section);
+function handleSearchSelect(result: { path: string; section?: string }, matchLine?: number) {
+  const section = result.section || result.path.split('/').slice(-2, -1)[0] || '';
+  navigateToPath(result.path, section, matchLine);
 }
 
 function setupKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
-    // Cmd+P: Quick switcher
-    if (e.metaKey && e.key === 'p') {
+    // Cmd+P or Cmd+Shift+F: Search bar
+    if (e.metaKey && (e.key === 'p' || (e.shiftKey && e.key === 'f'))) {
       e.preventDefault();
-      if (!isQuickSwitcherOpen()) {
-        openQuickSwitcher(handleQuickSwitcherSelect);
+      if (!isSearchBarOpen()) {
+        openSearchBar(handleSearchSelect);
       }
     }
 
@@ -286,10 +290,10 @@ function setupKeyboardShortcuts() {
       firstItem?.focus();
     }
 
-    // Esc: Close modals
+    // Esc: Close search
     if (e.key === 'Escape') {
-      if (isQuickSwitcherOpen()) {
-        closeQuickSwitcher();
+      if (isSearchBarOpen()) {
+        closeSearchBar();
       }
     }
   });
@@ -298,7 +302,7 @@ function setupKeyboardShortcuts() {
 async function init() {
   try {
     initEditor();
-    initQuickSwitcher();
+    initSearchBar(handleSearchSelect);
     setupKeyboardShortcuts();
     await initSidebar();
     await loadAllPages();

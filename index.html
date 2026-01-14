@@ -7,6 +7,25 @@
   <link rel="stylesheet" href="/src/styles/main.css">
 </head>
 <body>
+  <div id="search-bar">
+    <div id="search-container">
+      <input type="text" id="search-input" placeholder="Search files and content..." autocomplete="off">
+      <div id="search-results">
+        <section id="recent-files-section" class="search-section">
+          <div class="search-section-header">Recent Files</div>
+          <ul id="recent-files-list"></ul>
+        </section>
+        <section id="recent-searches-section" class="search-section">
+          <div class="search-section-header">Recent Searches</div>
+          <ul id="recent-searches-list"></ul>
+        </section>
+        <section id="search-results-section" class="search-section">
+          <ul id="search-results-list"></ul>
+        </section>
+      </div>
+    </div>
+  </div>
+
   <div id="app">
     <aside id="sections" class="sidebar">
       <div class="sidebar-header">Sections</div>
@@ -31,13 +50,6 @@
     <span id="status-text">Ready</span>
     <span id="word-count"></span>
   </footer>
-
-  <div id="quick-switcher-overlay">
-    <div id="quick-switcher">
-      <input type="text" id="quick-switcher-input" placeholder="Search pages...">
-      <ul id="quick-switcher-list"></ul>
-    </div>
-  </div>
 
   <script type="module" src="/src/main.ts"></script>
 </body>
