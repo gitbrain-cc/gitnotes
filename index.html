@@ -27,6 +27,22 @@
   </div>
 
   <div id="app">
+    <div id="git-status-box">
+      <div id="git-status-content">
+        <span id="git-repo-name">Loading...</span>
+        <span id="git-dirty-indicator"></span>
+      </div>
+      <div id="git-last-commit"></div>
+    </div>
+
+    <div id="git-history-panel">
+      <div id="git-history-header">
+        <span>History</span>
+        <button id="git-history-close">&times;</button>
+      </div>
+      <ul id="git-history-list"></ul>
+    </div>
+
     <aside id="sections" class="sidebar">
       <div class="sidebar-header">Sections</div>
       <ul id="sections-list"></ul>

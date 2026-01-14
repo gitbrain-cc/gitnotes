@@ -485,6 +485,17 @@ pub struct GitInfo {
     pub is_git_repo: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RepoStatus {
+    pub repo_name: String,
+    pub is_dirty: bool,
+    pub dirty_count: u32,
+    pub last_commit_hash: Option<String>,
+    pub last_commit_message: Option<String>,
+    pub last_commit_date: Option<String>,
+    pub last_commit_author: Option<String>,
+}
+
 #[tauri::command]
 fn get_git_info(path: String) -> Result<GitInfo, String> {
     let file_path = PathBuf::from(&path);
@@ -604,6 +615,147 @@ fn git_commit(path: String, message: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn get_repo_status() -> Result<RepoStatus, String> {
+    let notes_path = get_notes_path();
+
+    // Get repo name from remote or folder name
+    let repo_name = Command::new("git")
+        .args(["remote", "get-url", "origin"])
+        .current_dir(&notes_path)
+        .output()
+        .ok()
+        .and_then(|o| {
+            if o.status.success() {
+                let url = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                // Extract repo name from URL (e.g., "repo.git" -> "repo")
+                url.split('/').last()
+                    .map(|s| s.trim_end_matches(".git").to_string())
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| {
+            notes_path.file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| "notes".to_string())
+        });
+
+    // Check dirty status (count of uncommitted files)
+    let status_output = Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(&notes_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let dirty_count = if status_output.status.success() {
+        String::from_utf8_lossy(&status_output.stdout)
+            .lines()
+            .count() as u32
+    } else {
+        0
+    };
+
+    let is_dirty = dirty_count > 0;
+
+    // Get last commit info
+    let log_output = Command::new("git")
+        .args(["log", "-1", "--format=%H|%s|%aI|%an"])
+        .current_dir(&notes_path)
+        .output();
+
+    let (last_commit_hash, last_commit_message, last_commit_date, last_commit_author) = match log_output {
+        Ok(output) if output.status.success() => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let parts: Vec<&str> = stdout.trim().split('|').collect();
+            if parts.len() == 4 {
+                (
+                    Some(parts[0].chars().take(7).collect()), // Short hash (safe)
+                    Some(parts[1].to_string()),
+                    Some(parts[2].to_string()),
+                    Some(parts[3].to_string()),
+                )
+            } else {
+                (None, None, None, None)
+            }
+        }
+        _ => (None, None, None, None),
+    };
+
+    Ok(RepoStatus {
+        repo_name,
+        is_dirty,
+        dirty_count,
+        last_commit_hash,
+        last_commit_message,
+        last_commit_date,
+        last_commit_author,
+    })
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GitLogEntry {
+    pub hash: String,
+    pub message: String,
+    pub date: String,
+    pub author: String,
+    pub is_head: bool,
+}
+
+#[tauri::command]
+fn get_git_log(limit: Option<u32>) -> Result<Vec<GitLogEntry>, String> {
+    let notes_path = get_notes_path();
+    let limit = limit.unwrap_or(50);
+
+    // Get current HEAD hash
+    let head_output = Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(&notes_path)
+        .output();
+
+    let head_hash = head_output
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
+
+    // Get log entries
+    let log_output = Command::new("git")
+        .args([
+            "log",
+            &format!("-{}", limit),
+            "--format=%H|%s|%aI|%an",
+        ])
+        .current_dir(&notes_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !log_output.status.success() {
+        return Err("Failed to get git log".to_string());
+    }
+
+    let entries: Vec<GitLogEntry> = String::from_utf8_lossy(&log_output.stdout)
+        .lines()
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.split('|').collect();
+            if parts.len() == 4 {
+                let hash = parts[0].to_string();
+                let is_head = head_hash.as_ref().map(|h| h == &hash).unwrap_or(false);
+                Some(GitLogEntry {
+                    hash: hash.chars().take(7).collect(), // Short hash (safe)
+                    message: parts[1].to_string(),
+                    date: parts[2].to_string(),
+                    author: parts[3].to_string(),
+                    is_head,
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    Ok(entries)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let notes_path = get_notes_path();
@@ -649,6 +801,8 @@ pub fn run() {
             get_git_info,
             git_commit,
             search_notes,
+            get_repo_status,
+            get_git_log,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

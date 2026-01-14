@@ -3,6 +3,7 @@ import { initSidebar, navigateToPath } from './sidebar';
 import { initEditor, getContent, focusEditor, getWordCount, updateHeaderData, loadContent } from './editor';
 import { initSearchBar, openSearchBar, loadAllPages, closeSearchBar, isSearchBarOpen, addRecentFile } from './search-bar';
 import { parseFrontMatter, serializeFrontMatter, FrontMatter } from './frontmatter';
+import { initGitStatus, refreshGitStatus, closeHistoryPanel, isHistoryPanelOpen } from './git-status';
 
 interface Section {
   name: string;
@@ -253,6 +254,7 @@ export function scheduleSave() {
 
         // Refresh header to show new git status
         await refreshHeader();
+        await refreshGitStatus();
       } catch (err) {
         setStatus('Error saving');
         console.error('Save error:', err);
@@ -290,10 +292,12 @@ function setupKeyboardShortcuts() {
       firstItem?.focus();
     }
 
-    // Esc: Close search
+    // Esc: Close search or history panel
     if (e.key === 'Escape') {
       if (isSearchBarOpen()) {
         closeSearchBar();
+      } else if (isHistoryPanelOpen()) {
+        closeHistoryPanel();
       }
     }
   });
@@ -303,6 +307,7 @@ async function init() {
   try {
     initEditor();
     initSearchBar(handleSearchSelect);
+    initGitStatus();
     setupKeyboardShortcuts();
     await initSidebar();
     await loadAllPages();

@@ -395,3 +395,145 @@ html, body {
   outline: none;
   border-radius: 2px;
 }
+
+/* Git Status Box */
+#git-status-box {
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color);
+}
+
+#git-status-box:hover {
+  background: var(--bg-tertiary);
+}
+
+#git-status-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#git-repo-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+#git-dirty-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+#git-dirty-indicator.dirty {
+  background: var(--accent-color);
+}
+
+#git-last-commit {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Git History Panel */
+#git-history-panel {
+  display: none;
+  position: fixed;
+  top: 52px;
+  left: 0;
+  width: 400px;
+  max-height: calc(100vh - 76px);
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-color);
+  border-radius: 0 12px 12px 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  z-index: 1001;
+  overflow: hidden;
+  flex-direction: column;
+}
+
+#git-history-panel.open {
+  display: flex;
+}
+
+#git-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+#git-history-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+#git-history-close:hover {
+  color: var(--text-primary);
+}
+
+#git-history-list {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+}
+
+#git-history-list li {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: default;
+}
+
+#git-history-list li:hover {
+  background: var(--bg-tertiary);
+}
+
+#git-history-list li.current {
+  background: var(--bg-tertiary);
+  border-left: 3px solid var(--accent-color);
+  padding-left: 13px;
+}
+
+.commit-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.commit-hash {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--accent-color);
+}
+
+.commit-date {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.commit-message {
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.commit-author {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
