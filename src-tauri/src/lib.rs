@@ -700,6 +700,8 @@ pub struct GitLogEntry {
     pub date: String,
     pub author: String,
     pub is_head: bool,
+    pub insertions: u32,
+    pub deletions: u32,
 }
 
 #[tauri::command]
@@ -718,12 +720,13 @@ fn get_git_log(limit: Option<u32>) -> Result<Vec<GitLogEntry>, String> {
         .filter(|o| o.status.success())
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
 
-    // Get log entries
+    // Get log entries with shortstat
     let log_output = Command::new("git")
         .args([
             "log",
             &format!("-{}", limit),
-            "--format=%H|%s|%aI|%an",
+            "--format=COMMIT|%H|%s|%aI|%an",
+            "--shortstat",
         ])
         .current_dir(&notes_path)
         .output()
@@ -733,27 +736,163 @@ fn get_git_log(limit: Option<u32>) -> Result<Vec<GitLogEntry>, String> {
         return Err("Failed to get git log".to_string());
     }
 
-    let entries: Vec<GitLogEntry> = String::from_utf8_lossy(&log_output.stdout)
-        .lines()
-        .filter_map(|line| {
-            let parts: Vec<&str> = line.split('|').collect();
-            if parts.len() == 4 {
-                let hash = parts[0].to_string();
-                let is_head = head_hash.as_ref().map(|h| h == &hash).unwrap_or(false);
-                Some(GitLogEntry {
-                    hash: hash.chars().take(7).collect(), // Short hash (safe)
-                    message: parts[1].to_string(),
-                    date: parts[2].to_string(),
-                    author: parts[3].to_string(),
+    let output = String::from_utf8_lossy(&log_output.stdout);
+    let mut entries: Vec<GitLogEntry> = Vec::new();
+    let mut current_entry: Option<(String, String, String, String, String)> = None;
+
+    for line in output.lines() {
+        if line.starts_with("COMMIT|") {
+            // Save previous entry if exists
+            if let Some((hash, message, date, author, full_hash)) = current_entry.take() {
+                let is_head = head_hash.as_ref().map(|h| h == &full_hash).unwrap_or(false);
+                entries.push(GitLogEntry {
+                    hash,
+                    message,
+                    date,
+                    author,
                     is_head,
-                })
-            } else {
-                None
+                    insertions: 0,
+                    deletions: 0,
+                });
             }
-        })
-        .collect();
+            // Parse new entry
+            let parts: Vec<&str> = line.split('|').collect();
+            if parts.len() == 5 {
+                let full_hash = parts[1].to_string();
+                current_entry = Some((
+                    full_hash.chars().take(7).collect(),
+                    parts[2].to_string(),
+                    parts[3].to_string(),
+                    parts[4].to_string(),
+                    full_hash,
+                ));
+            }
+        } else if !line.trim().is_empty() {
+            // Parse shortstat line: " 3 files changed, 10 insertions(+), 5 deletions(-)"
+            if current_entry.is_some() {
+                let mut insertions = 0u32;
+                let mut deletions = 0u32;
+                for part in line.split(',') {
+                    let part = part.trim();
+                    if part.contains("insertion") {
+                        if let Some(num) = part.split_whitespace().next() {
+                            insertions = num.parse::<u32>().unwrap_or(0);
+                        }
+                    } else if part.contains("deletion") {
+                        if let Some(num) = part.split_whitespace().next() {
+                            deletions = num.parse::<u32>().unwrap_or(0);
+                        }
+                    }
+                }
+                if let Some((hash, message, date, author, full_hash)) = current_entry.take() {
+                    let is_head = head_hash.as_ref().map(|h| h == &full_hash).unwrap_or(false);
+                    entries.push(GitLogEntry {
+                        hash,
+                        message,
+                        date,
+                        author,
+                        is_head,
+                        insertions,
+                        deletions,
+                    });
+                }
+            }
+        }
+    }
+
+    // Don't forget the last entry if it had no stat line
+    if let Some((hash, message, date, author, full_hash)) = current_entry {
+        let is_head = head_hash.as_ref().map(|h| h == &full_hash).unwrap_or(false);
+        entries.push(GitLogEntry {
+            hash,
+            message,
+            date,
+            author,
+            is_head,
+            insertions: 0,
+            deletions: 0,
+        });
+    }
 
     Ok(entries)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RepoStats {
+    pub total_commits: u32,
+    pub first_commit_date: Option<String>,
+    pub current_branch: Option<String>,
+    pub branch_count: u32,
+}
+
+#[tauri::command]
+fn get_repo_stats() -> Result<RepoStats, String> {
+    let notes_path = get_notes_path();
+
+    // Get total commit count
+    let count_output = Command::new("git")
+        .args(["rev-list", "--count", "HEAD"])
+        .current_dir(&notes_path)
+        .output();
+
+    let total_commits = count_output
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .trim()
+                .parse::<u32>()
+                .unwrap_or(0)
+        })
+        .unwrap_or(0);
+
+    // Get first commit date (repo age)
+    let first_commit_output = Command::new("git")
+        .args(["log", "--reverse", "--format=%aI", "-1"])
+        .current_dir(&notes_path)
+        .output();
+
+    let first_commit_date = first_commit_output
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| !s.is_empty());
+
+    // Get current branch
+    let branch_output = Command::new("git")
+        .args(["branch", "--show-current"])
+        .current_dir(&notes_path)
+        .output();
+
+    let current_branch = branch_output
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| !s.is_empty());
+
+    // Get branch count
+    let branches_output = Command::new("git")
+        .args(["branch", "--list"])
+        .current_dir(&notes_path)
+        .output();
+
+    let branch_count = branches_output
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .filter(|l| !l.trim().is_empty())
+                .count() as u32
+        })
+        .unwrap_or(0);
+
+    Ok(RepoStats {
+        total_commits,
+        first_commit_date,
+        current_branch,
+        branch_count,
+    })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -803,6 +942,7 @@ pub fn run() {
             search_notes,
             get_repo_status,
             get_git_log,
+            get_repo_stats,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

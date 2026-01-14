@@ -169,19 +169,110 @@ html, body {
   color: var(--text-secondary);
 }
 
-/* Search Bar */
-#search-bar {
+/* Top Bar */
+#top-bar {
   display: flex;
-  justify-content: center;
+  align-items: center;
   padding: 10px 12px;
   background: var(--bg-secondary);
   position: relative;
   z-index: 1000;
 }
 
+#git-status-container {
+  flex-shrink: 0;
+  position: relative;
+  margin-left: 4px;
+}
+
+
+/* Git Repos Row */
+#git-repos-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+/* Inside modal: add padding to repos row */
+#git-modal #git-repos-row {
+  padding: 8px;
+  padding-bottom: 0;
+}
+
+.git-repo-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.git-repo-box:hover {
+  background: var(--bg-primary);
+  border-color: var(--border-color);
+}
+
+.git-repo-box.active {
+  border-color: transparent;
+  cursor: default;
+}
+
+.git-repo-box.active:hover {
+  background: var(--bg-tertiary);
+  border-color: transparent;
+}
+
+/* Placeholder repo box (Add repository) */
+.git-repo-box.placeholder {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+  font-size: 11px;
+  justify-content: center;
+}
+
+.git-repo-box.placeholder:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+/* Git Modal - hidden by default */
+#git-modal {
+  display: none;
+  position: absolute;
+  top: -9px;  /* compensate for padding (8px) + border (1px) */
+  left: -9px;
+  z-index: 1001;
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Open state: show modal */
+#git-status-container.active #git-modal {
+  display: block;
+}
+
+#git-repo-info {
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+#git-repo-info:empty {
+  display: none;
+}
+
 #search-container {
-  width: 500px;
-  max-width: 90%;
+  flex: 1;
+  max-width: 500px;
+  margin-left: calc(var(--sidebar-width-pages) - 35px);
   position: relative;
 }
 
@@ -396,42 +487,62 @@ html, body {
   border-radius: 2px;
 }
 
-/* Git Status Box */
-#git-status-box {
-  padding: 12px 16px;
+/* Sidebar Area */
+#sidebar-area {
+  display: flex;
+  flex-direction: column;
   background: var(--bg-secondary);
-  cursor: pointer;
-  border-bottom: 1px solid var(--border-color);
 }
 
-#git-status-box:hover {
-  background: var(--bg-tertiary);
+#sidebars {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
 }
 
-#git-status-content {
+#sidebars .sidebar {
+  width: var(--sidebar-width-sections);
+}
+
+#sidebars #pages {
+  width: var(--sidebar-width-pages);
+}
+
+/* Git Status Box Elements (shared by anchor + modal) */
+.git-icon {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.git-status-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.git-status-content {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-#git-repo-name {
+.git-repo-name {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
-#git-dirty-indicator {
+.git-dirty-indicator {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: transparent;
 }
 
-#git-dirty-indicator.dirty {
+.git-dirty-indicator.dirty {
   background: var(--accent-color);
 }
 
-#git-last-commit {
+.git-last-commit {
   margin-top: 4px;
   font-size: 11px;
   color: var(--text-secondary);
@@ -440,58 +551,15 @@ html, body {
   text-overflow: ellipsis;
 }
 
-/* Git History Panel */
-#git-history-panel {
-  display: none;
-  position: fixed;
-  top: 52px;
-  left: 0;
-  width: 400px;
-  max-height: calc(100vh - 76px);
-  background: var(--bg-primary);
-  border: 1px solid var(--accent-color);
-  border-radius: 0 12px 12px 0;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-  z-index: 1001;
-  overflow: hidden;
-  flex-direction: column;
-}
-
-#git-history-panel.open {
-  display: flex;
-}
-
-#git-history-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border-color);
-  font-weight: 600;
-  font-size: 14px;
-}
-
-#git-history-close {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 20px;
-  cursor: pointer;
-  padding: 0 4px;
-}
-
-#git-history-close:hover {
-  color: var(--text-primary);
-}
-
 #git-history-list {
+  max-height: 45vh;
   list-style: none;
   overflow-y: auto;
   flex: 1;
 }
 
 #git-history-list li {
-  padding: 10px 16px;
+  padding: 6px 12px;
   border-bottom: 1px solid var(--border-color);
   cursor: default;
 }
@@ -502,38 +570,44 @@ html, body {
 
 #git-history-list li.current {
   background: var(--bg-tertiary);
-  border-left: 3px solid var(--accent-color);
-  padding-left: 13px;
+  border-left: 2px solid var(--accent-color);
+  padding-left: 10px;
 }
 
-.commit-header {
+.commit-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
 }
 
-.commit-hash {
+.commit-stats {
+  flex-shrink: 0;
+  display: flex;
+  gap: 4px;
+  min-width: 50px;
   font-family: monospace;
-  font-size: 11px;
-  color: var(--accent-color);
+  font-size: 10px;
 }
 
-.commit-date {
-  font-size: 11px;
-  color: var(--text-secondary);
+.stat-add {
+  color: #4caf50;
+}
+
+.stat-del {
+  color: #f44336;
 }
 
 .commit-message {
-  font-size: 13px;
+  flex: 1;
+  font-size: 12px;
   color: var(--text-primary);
-  margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.commit-author {
-  font-size: 11px;
+.commit-meta {
+  flex-shrink: 0;
+  font-size: 10px;
   color: var(--text-secondary);
-  margin-top: 2px;
 }

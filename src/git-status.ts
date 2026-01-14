@@ -16,6 +16,15 @@ interface GitLogEntry {
   date: string;
   author: string;
   is_head: boolean;
+  insertions: number;
+  deletions: number;
+}
+
+interface RepoStats {
+  total_commits: number;
+  first_commit_date: string | null;
+  current_branch: string | null;
+  branch_count: number;
 }
 
 let isHistoryOpen = false;
@@ -53,33 +62,84 @@ async function getGitLog(limit?: number): Promise<GitLogEntry[]> {
   return await invoke('get_git_log', { limit });
 }
 
-function renderStatus(status: RepoStatus): void {
-  const repoNameEl = document.getElementById('git-repo-name');
-  const dirtyIndicator = document.getElementById('git-dirty-indicator');
-  const lastCommitEl = document.getElementById('git-last-commit');
+async function getRepoStats(): Promise<RepoStats> {
+  return await invoke('get_repo_stats');
+}
 
-  if (repoNameEl) {
-    repoNameEl.textContent = status.repo_name;
+function formatRepoAge(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffMonths = Math.floor(diffDays / 30);
+  const diffYears = Math.floor(diffDays / 365);
+
+  if (diffYears >= 1) {
+    const remainingMonths = Math.floor((diffDays % 365) / 30);
+    if (remainingMonths > 0) {
+      return `${diffYears}y ${remainingMonths}mo`;
+    }
+    return `${diffYears}y`;
+  }
+  if (diffMonths >= 1) return `${diffMonths}mo`;
+  if (diffDays >= 1) return `${diffDays}d`;
+  return 'today';
+}
+
+function renderRepoInfo(stats: RepoStats): void {
+  const infoEl = document.getElementById('git-repo-info');
+  if (!infoEl) return;
+
+  const parts: string[] = [];
+
+  if (stats.total_commits > 0) {
+    parts.push(`${stats.total_commits.toLocaleString()} commits`);
   }
 
-  if (dirtyIndicator) {
-    dirtyIndicator.classList.toggle('dirty', status.is_dirty);
-    dirtyIndicator.title = status.is_dirty
+  if (stats.first_commit_date) {
+    parts.push(`${formatRepoAge(stats.first_commit_date)} old`);
+  }
+
+  if (stats.current_branch) {
+    parts.push(`on ${stats.current_branch}`);
+  }
+
+  infoEl.textContent = parts.join(' · ');
+}
+
+function renderStatus(status: RepoStatus): void {
+  // Update all repo name elements (anchor + modal)
+  document.querySelectorAll('.git-repo-name').forEach(el => {
+    el.textContent = status.repo_name;
+  });
+
+  // Update all dirty indicators
+  document.querySelectorAll('.git-dirty-indicator').forEach(el => {
+    el.classList.toggle('dirty', status.is_dirty);
+    (el as HTMLElement).title = status.is_dirty
       ? `${status.dirty_count} uncommitted change${status.dirty_count !== 1 ? 's' : ''}`
       : 'All changes committed';
-  }
+  });
 
-  if (lastCommitEl) {
-    if (status.last_commit_date && status.last_commit_message) {
-      const relativeTime = formatRelativeTime(status.last_commit_date);
-      const truncatedMessage = status.last_commit_message.length > 40
-        ? status.last_commit_message.slice(0, 40) + '...'
-        : status.last_commit_message;
-      lastCommitEl.textContent = `${relativeTime} · ${truncatedMessage}`;
-    } else {
-      lastCommitEl.textContent = 'No commits yet';
-    }
+  // Update all last commit elements
+  const commitText = status.last_commit_date && status.last_commit_message
+    ? `${formatRelativeTime(status.last_commit_date)} · ${
+        status.last_commit_message.length > 20
+          ? status.last_commit_message.slice(0, 20) + '...'
+          : status.last_commit_message
+      }`
+    : 'No commits yet';
+
+  document.querySelectorAll('.git-last-commit').forEach(el => {
+    el.textContent = commitText;
+  });
+}
+
+function formatStat(num: number): string {
+  if (num >= 1000) {
+    return Math.floor(num / 1000) + 'k';
   }
+  return num.toString();
 }
 
 function renderHistoryPanel(entries: GitLogEntry[]): void {
@@ -95,14 +155,24 @@ function renderHistoryPanel(entries: GitLogEntry[]): void {
     }
 
     const relativeTime = formatRelativeTime(entry.date);
+    const hasChanges = entry.insertions > 0 || entry.deletions > 0;
+
+    let statsHtml = '';
+    if (hasChanges) {
+      if (entry.insertions > 0) {
+        statsHtml += `<span class="stat-add">+${formatStat(entry.insertions)}</span>`;
+      }
+      if (entry.deletions > 0) {
+        statsHtml += `<span class="stat-del">-${formatStat(entry.deletions)}</span>`;
+      }
+    }
 
     li.innerHTML = `
-      <div class="commit-header">
-        <span class="commit-hash">${escapeHtml(entry.hash)}</span>
-        <span class="commit-date">${escapeHtml(relativeTime)}</span>
+      <div class="commit-row">
+        <span class="commit-stats">${statsHtml}</span>
+        <span class="commit-message">${escapeHtml(entry.message)}</span>
+        <span class="commit-meta">${escapeHtml(relativeTime)}</span>
       </div>
-      <div class="commit-message">${escapeHtml(entry.message)}</div>
-      <div class="commit-author">${escapeHtml(entry.author)}</div>
     `;
 
     list.appendChild(li);
@@ -111,20 +181,26 @@ function renderHistoryPanel(entries: GitLogEntry[]): void {
 
 export function openHistoryPanel(): void {
   isHistoryOpen = true;
-  const panel = document.getElementById('git-history-panel');
-  if (panel) {
-    panel.classList.add('open');
+  const container = document.getElementById('git-status-container');
+  if (container) {
+    container.classList.add('active');
   }
 
-  // Load and render history
-  getGitLog(50).then(renderHistoryPanel).catch(console.error);
+  // Load history and stats
+  Promise.all([
+    getGitLog(50),
+    getRepoStats(),
+  ]).then(([log, stats]) => {
+    renderHistoryPanel(log);
+    renderRepoInfo(stats);
+  }).catch(console.error);
 }
 
 export function closeHistoryPanel(): void {
   isHistoryOpen = false;
-  const panel = document.getElementById('git-history-panel');
-  if (panel) {
-    panel.classList.remove('open');
+  const container = document.getElementById('git-status-container');
+  if (container) {
+    container.classList.remove('active');
   }
 }
 
@@ -134,8 +210,12 @@ export function isHistoryPanelOpen(): boolean {
 
 export async function refreshGitStatus(): Promise<void> {
   try {
-    const status = await getRepoStatus();
+    const [status, stats] = await Promise.all([
+      getRepoStatus(),
+      getRepoStats(),
+    ]);
     renderStatus(status);
+    renderRepoInfo(stats);
   } catch (err) {
     console.error('Failed to get repo status:', err);
   }
@@ -143,10 +223,10 @@ export async function refreshGitStatus(): Promise<void> {
 
 export function initGitStatus(): void {
   const statusBox = document.getElementById('git-status-box');
-  const closeBtn = document.getElementById('git-history-close');
-  const panel = document.getElementById('git-history-panel');
+  const addRepoBtn = document.getElementById('git-add-repo');
+  const container = document.getElementById('git-status-container');
 
-  // Click status box to open history
+  // Click status box to toggle dropdown
   statusBox?.addEventListener('click', () => {
     if (isHistoryOpen) {
       closeHistoryPanel();
@@ -155,16 +235,16 @@ export function initGitStatus(): void {
     }
   });
 
-  // Close button
-  closeBtn?.addEventListener('click', (e) => {
+  // Add repository button (TODO: implement)
+  addRepoBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
-    closeHistoryPanel();
+    console.log('TODO: Add repository dialog');
   });
 
   // Click outside to close
   document.addEventListener('click', (e) => {
-    if (isHistoryOpen && panel && statusBox) {
-      if (!panel.contains(e.target as Node) && !statusBox.contains(e.target as Node)) {
+    if (isHistoryOpen && container) {
+      if (!container.contains(e.target as Node)) {
         closeHistoryPanel();
       }
     }
