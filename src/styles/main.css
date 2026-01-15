@@ -87,6 +87,8 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  border-left: 3px solid transparent;
+  transition: border-width 150ms ease, background 150ms ease, border-color 150ms ease;
 }
 
 .sidebar li:hover {
@@ -96,8 +98,32 @@ body {
 .sidebar li.active {
   background: var(--bg-tertiary);
   color: var(--text-primary);
-  border-left: 3px solid var(--accent-color);
-  padding-left: 13px;
+  border-left-width: 5px;
+  padding-left: 11px;
+}
+
+/* Section with custom color */
+#sections-list li[data-color] {
+  border-left-color: var(--section-color);
+  border-left-style: solid;
+  opacity: 0.85;
+}
+
+#sections-list li[data-color]:hover {
+  opacity: 1;
+}
+
+#sections-list li[data-color].active {
+  opacity: 1;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--section-color) 15%, transparent) 0%,
+    transparent 35%
+  );
+}
+
+/* Fallback for sections without custom color */
+#sections-list li:not([data-color]).active {
+  border-left-color: var(--accent-color);
 }
 
 .sidebar-footer {
@@ -689,4 +715,55 @@ body {
 .sort-arrow {
   font-size: 12px;
   opacity: 0.8;
+}
+
+/* Color Picker */
+.color-picker {
+  position: fixed;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1001;
+}
+
+.color-swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 100ms ease, border-color 100ms ease;
+}
+
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.color-swatch.selected {
+  border-color: var(--text-primary);
+}
+
+.color-clear-btn {
+  width: 100%;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.color-clear-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
 }

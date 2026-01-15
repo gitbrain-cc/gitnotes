@@ -14,6 +14,16 @@ const PROTECTED_SECTIONS: &[&str] = &["1-todo", "1-weeks"];
 pub struct Section {
     pub name: String,
     pub path: String,
+    pub title: Option<String>,
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct SectionMetadata {
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub color: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -77,6 +87,49 @@ fn parse_frontmatter(content: &str) -> (Option<Frontmatter>, &str) {
     }
 
     (None, content)
+}
+
+fn load_section_metadata(section_path: &PathBuf) -> SectionMetadata {
+    let metadata_file = section_path.join(".section.md");
+    if !metadata_file.exists() {
+        return SectionMetadata::default();
+    }
+
+    if let Ok(content) = fs::read_to_string(&metadata_file) {
+        if content.starts_with("---\n") {
+            if let Some(end) = content[4..].find("\n---") {
+                let yaml_str = &content[4..4 + end];
+                if let Ok(metadata) = serde_yaml::from_str::<SectionMetadata>(yaml_str) {
+                    return metadata;
+                }
+            }
+        }
+    }
+
+    SectionMetadata::default()
+}
+
+fn save_section_metadata(section_path: &PathBuf, metadata: &SectionMetadata) -> Result<(), String> {
+    let metadata_file = section_path.join(".section.md");
+
+    let mut lines = vec!["---".to_string()];
+    if let Some(ref title) = metadata.title {
+        lines.push(format!("title: \"{}\"", title));
+    }
+    if let Some(ref color) = metadata.color {
+        lines.push(format!("color: \"{}\"", color));
+    }
+    lines.push("---".to_string());
+
+    let content = lines.join("\n");
+    fs::write(&metadata_file, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_section_metadata(section_path: String, title: Option<String>, color: Option<String>) -> Result<(), String> {
+    let path = PathBuf::from(&section_path);
+    let metadata = SectionMetadata { title, color };
+    save_section_metadata(&path, &metadata)
 }
 
 fn format_frontmatter(fm: &Frontmatter) -> String {
@@ -177,9 +230,12 @@ fn list_sections() -> Result<Vec<Section>, String> {
             let entry = entry.ok()?;
             let path = entry.path();
             if path.is_dir() && !entry.file_name().to_string_lossy().starts_with('.') {
+                let metadata = load_section_metadata(&path);
                 Some(Section {
                     name: entry.file_name().to_string_lossy().to_string(),
                     path: path.to_string_lossy().to_string(),
+                    title: metadata.title,
+                    color: metadata.color,
                 })
             } else {
                 None
@@ -590,43 +646,41 @@ fn create_section(name: String) -> Result<Section, String> {
     Ok(Section {
         name,
         path: section_path.to_string_lossy().to_string(),
+        title: None,
+        color: None,
     })
 }
 
 #[tauri::command]
 fn rename_section(path: String, new_name: String) -> Result<Section, String> {
-    let old_dir = PathBuf::from(&path);
+    let section_path = PathBuf::from(&path);
 
-    if !old_dir.exists() {
+    if !section_path.exists() {
         return Err("Section not found".to_string());
     }
 
-    let old_name = old_dir.file_name()
+    let folder_name = section_path.file_name()
         .ok_or("Invalid path")?
         .to_string_lossy()
-        .to_lowercase();
+        .to_string();
 
-    if PROTECTED_SECTIONS.contains(&old_name.as_str()) {
+    let old_name_lower = folder_name.to_lowercase();
+    if PROTECTED_SECTIONS.contains(&old_name_lower.as_str()) {
         return Err("This section cannot be renamed".to_string());
     }
 
-    let invalid_chars = ['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
-    if new_name.chars().any(|c| invalid_chars.contains(&c)) {
-        return Err("Invalid characters in name".to_string());
-    }
+    // Load existing metadata to preserve color
+    let mut metadata = load_section_metadata(&section_path);
+    metadata.title = Some(new_name.clone());
 
-    let parent = old_dir.parent().ok_or("Invalid path")?;
-    let new_path = parent.join(&new_name);
-
-    if new_path.exists() {
-        return Err("A section with that name already exists".to_string());
-    }
-
-    fs::rename(&old_dir, &new_path).map_err(|e| e.to_string())?;
+    // Save updated metadata
+    save_section_metadata(&section_path, &metadata)?;
 
     Ok(Section {
-        name: new_name,
-        path: new_path.to_string_lossy().to_string(),
+        name: folder_name,
+        path: path,
+        title: metadata.title,
+        color: metadata.color,
     })
 }
 
@@ -1151,6 +1205,7 @@ pub fn run() {
             get_repo_stats,
             get_sort_preference,
             set_sort_preference,
+            set_section_metadata,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

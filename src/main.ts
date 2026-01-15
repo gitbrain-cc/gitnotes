@@ -89,6 +89,14 @@ export async function deleteSection(path: string): Promise<void> {
   return await invoke('delete_section', { path });
 }
 
+export async function setSectionMetadata(sectionPath: string, title: string | null, color: string | null) {
+  await invoke('set_section_metadata', {
+    sectionPath,
+    title: title || null,
+    color: color || null,
+  });
+}
+
 export function setCurrentPage(page: Page | null) {
   currentPage = page;
 }

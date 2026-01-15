@@ -1,15 +1,18 @@
 import {
   loadSections, loadPages, setCurrentPage, setStatus,
-  createPageSmart, deletePage, renamePage, createSection, renameSection, deleteSection, movePage,
-  loadPageWithHeader
+  createPageSmart, deletePage, renamePage, createSection, deleteSection, movePage,
+  loadPageWithHeader, setSectionMetadata
 } from './main';
 import { loadContent, updateHeaderData } from './editor';
 import { showContextMenu } from './contextmenu';
 import { initSortMenu, updateSortForSection } from './sortmenu';
+import { showColorPicker } from './colorpicker';
 
 interface Section {
   name: string;
   path: string;
+  title?: string;
+  color?: string;
 }
 
 interface Page {
@@ -93,7 +96,7 @@ async function handleDeleteSection(section: Section) {
 function startSectionRename(section: Section, li: HTMLElement) {
   const input = document.createElement('input');
   input.type = 'text';
-  input.value = section.name;
+  input.value = section.title || section.name;
   input.className = 'inline-rename';
 
   li.textContent = '';
@@ -103,9 +106,9 @@ function startSectionRename(section: Section, li: HTMLElement) {
 
   const finishRename = async () => {
     const newName = input.value.trim();
-    if (newName && newName !== section.name) {
+    if (newName && newName !== (section.title || section.name)) {
       try {
-        await renameSection(section.path, newName);
+        await setSectionMetadata(section.path, newName, section.color || null);
       } catch (err) {
         console.error('Rename error:', err);
       }
@@ -119,7 +122,7 @@ function startSectionRename(section: Section, li: HTMLElement) {
     if (e.key === 'Enter') {
       input.blur();
     } else if (e.key === 'Escape') {
-      input.value = section.name;
+      input.value = section.title || section.name;
       input.blur();
     }
   });
@@ -179,8 +182,13 @@ function renderSections() {
 
   for (const section of sections) {
     const li = document.createElement('li');
-    li.textContent = section.name;
+    li.textContent = section.title || section.name;
     li.dataset.path = section.path;
+
+    if (section.color) {
+      li.dataset.color = section.color;
+      li.style.setProperty('--section-color', section.color);
+    }
 
     if (currentSection && currentSection.path === section.path) {
       li.classList.add('active');
@@ -223,6 +231,20 @@ function renderSections() {
       e.preventDefault();
       showContextMenu(e.clientX, e.clientY, [
         { label: 'Rename', action: () => startSectionRename(section, li), disabled: isProtected },
+        {
+          label: 'Set Color',
+          action: () => {
+            showColorPicker(e.clientX, e.clientY, section.color || null, async (color) => {
+              try {
+                await setSectionMetadata(section.path, section.title || null, color);
+                sections = await loadSections();
+                renderSections();
+              } catch (err) {
+                console.error('Set color error:', err);
+              }
+            });
+          }
+        },
         { label: 'Delete', action: () => handleDeleteSection(section), disabled: isProtected }
       ]);
     });

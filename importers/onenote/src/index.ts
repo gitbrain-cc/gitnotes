@@ -120,7 +120,14 @@ async function processDocx(
     usedNames.add(filename.toLowerCase());
 
     const filePath = join(sectionDir, filename);
-    const content = `# ${page.title}\n\n${page.content}`;
+
+    // Build content with front-matter
+    let content = '';
+    if (page.createdAt) {
+      const isoDate = page.createdAt.toISOString().slice(0, 19); // Remove milliseconds and Z
+      content = `---\ncreated: ${isoDate}\n---\n\n`;
+    }
+    content += `# ${page.title}\n\n${page.content}`;
 
     await writeFile(filePath, content, 'utf-8');
 

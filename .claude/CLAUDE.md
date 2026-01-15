@@ -10,6 +10,7 @@ NoteOne is a lightweight markdown notes app replacing OneNote. Built with Tauri 
 - **src/main.ts** - Frontend entry, orchestration, auto-save
 - **src/sidebar.ts** - Two-panel navigation (sections/pages)
 - **src/editor.ts** - CodeMirror setup and content management
+- **src/colorpicker.ts** - Color picker for section ribbons
 - **src/styles/main.css** - Styling with CSS variables for theming
 
 ## Key Patterns
@@ -34,6 +35,7 @@ Working:
 - Custom ordering
 - Dark mode (warm orange theme)
 - Page management (create/rename/delete/move)
+- Section metadata (color ribbons, display names via `.section.md`)
 - Quick switcher (Cmd+P)
 
 TODO:
@@ -51,6 +53,7 @@ notes/
 ├── .order.json        # Section ordering
 ├── 1-weeks/
 │   ├── .order.json    # Page ordering for this section
+│   ├── .section.md    # Section metadata (title, color)
 │   └── *.md
 └── other-sections/
 ```
