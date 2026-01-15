@@ -61,12 +61,17 @@ body {
 }
 
 .sidebar-header {
-  padding: 14px 16px 10px;
+  height: 48px;
+  padding: 0 16px;
+  box-sizing: border-box;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-secondary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .sidebar ul {
@@ -256,6 +261,7 @@ body {
   top: -9px;  /* compensate for padding (8px) + border (1px) */
   left: -9px;
   z-index: 1001;
+  max-width: 450px;
   background: var(--bg-primary);
   border: 1px solid var(--accent-color);
   border-radius: 8px;
@@ -615,4 +621,72 @@ body {
   flex-shrink: 0;
   font-size: 10px;
   color: var(--text-secondary);
+}
+
+/* Sort Menu */
+#sort-container {
+  position: relative;
+}
+
+#sort-btn {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#sort-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+#sort-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 100;
+  margin-top: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  min-width: 150px;
+  overflow: hidden;
+}
+
+#sort-container.active #sort-menu {
+  display: block;
+}
+
+.sort-option {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sort-option:hover {
+  background: var(--bg-tertiary);
+}
+
+.sort-option.active {
+  color: var(--accent-color);
+  font-weight: 500;
+}
+
+.sort-arrow {
+  font-size: 12px;
+  opacity: 0.8;
 }

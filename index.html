@@ -83,7 +83,25 @@
           </div>
         </aside>
         <aside id="pages" class="sidebar">
-          <div class="sidebar-header">Pages</div>
+          <div class="sidebar-header">
+            <span>Pages</span>
+            <div id="sort-container">
+              <button id="sort-btn" title="Sort pages">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="4" y1="6" x2="16" y2="6"></line>
+                  <line x1="4" y1="12" x2="12" y2="12"></line>
+                  <line x1="4" y1="18" x2="8" y2="18"></line>
+                  <polyline points="15 15 18 18 21 15"></polyline>
+                  <line x1="18" y1="12" x2="18" y2="18"></line>
+                </svg>
+              </button>
+              <div id="sort-menu">
+                <div class="sort-option" data-sort="alpha">Alphabetical <span class="sort-arrow"></span></div>
+                <div class="sort-option" data-sort="created">Date Created <span class="sort-arrow"></span></div>
+                <div class="sort-option" data-sort="modified">Date Modified <span class="sort-arrow"></span></div>
+              </div>
+            </div>
+          </div>
           <ul id="pages-list"></ul>
           <div class="sidebar-footer">
             <button id="add-page-btn" class="sidebar-add-btn">+ Add page</button>

@@ -5,6 +5,7 @@ import {
 } from './main';
 import { loadContent, updateHeaderData } from './editor';
 import { showContextMenu } from './contextmenu';
+import { initSortMenu, updateSortForSection } from './sortmenu';
 
 interface Section {
   name: string;
@@ -124,7 +125,16 @@ function startSectionRename(section: Section, li: HTMLElement) {
   });
 }
 
+async function refreshCurrentPages() {
+  if (!currentSection) return;
+  const pages = await loadPages(currentSection.path);
+  renderPages(pages);
+}
+
 export async function initSidebar() {
+  // Initialize sort menu with refresh callback
+  initSortMenu(refreshCurrentPages);
+
   sections = await loadSections();
   renderSections();
 
@@ -223,6 +233,9 @@ function renderSections() {
 async function selectSection(section: Section) {
   currentSection = section;
   renderSections();
+
+  // Update sort menu for this section
+  await updateSortForSection(section.path);
 
   const pages = await loadPages(section.path);
   renderPages(pages);

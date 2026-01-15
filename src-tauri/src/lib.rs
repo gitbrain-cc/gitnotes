@@ -21,6 +21,8 @@ pub struct Page {
     pub name: String,
     pub path: String,
     pub filename: String,
+    pub created: u64,   // Unix timestamp
+    pub modified: u64,  // Unix timestamp
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,7 +38,7 @@ pub struct OrderConfig {
 }
 
 fn default_sort() -> String {
-    "name-asc".to_string()
+    "alpha-asc".to_string()
 }
 
 impl Default for OrderConfig {
@@ -48,6 +50,70 @@ impl Default for OrderConfig {
             pinned: vec![],
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+struct Frontmatter {
+    #[serde(default)]
+    created: Option<String>,
+    #[serde(default)]
+    modified: Option<String>,
+    #[serde(flatten)]
+    other: std::collections::HashMap<String, serde_yaml::Value>,
+}
+
+fn parse_frontmatter(content: &str) -> (Option<Frontmatter>, &str) {
+    if !content.starts_with("---\n") {
+        return (None, content);
+    }
+
+    if let Some(end) = content[4..].find("\n---") {
+        let yaml_str = &content[4..4 + end];
+        let body = &content[4 + end + 4..].trim_start_matches('\n');
+
+        if let Ok(fm) = serde_yaml::from_str::<Frontmatter>(yaml_str) {
+            return (Some(fm), body);
+        }
+    }
+
+    (None, content)
+}
+
+fn format_frontmatter(fm: &Frontmatter) -> String {
+    let mut lines = vec!["---".to_string()];
+
+    if let Some(ref created) = fm.created {
+        lines.push(format!("created: {}", created));
+    }
+    if let Some(ref modified) = fm.modified {
+        lines.push(format!("modified: {}", modified));
+    }
+
+    // Add other fields
+    for (key, value) in &fm.other {
+        if let Ok(yaml) = serde_yaml::to_string(value) {
+            let yaml = yaml.trim();
+            if yaml.contains('\n') {
+                lines.push(format!("{}: {}", key, yaml));
+            } else {
+                lines.push(format!("{}: {}", key, yaml));
+            }
+        }
+    }
+
+    lines.push("---".to_string());
+    lines.join("\n")
+}
+
+fn iso_now() -> String {
+    Utc::now().format("%Y-%m-%dT%H:%M:%S").to_string()
+}
+
+fn iso_to_timestamp(iso: &str) -> u64 {
+    DateTime::parse_from_str(&format!("{}+00:00", iso), "%Y-%m-%dT%H:%M:%S%z")
+        .or_else(|_| DateTime::parse_from_rfc3339(iso))
+        .map(|dt| dt.timestamp() as u64)
+        .unwrap_or(0)
 }
 
 struct AppState {
@@ -72,6 +138,27 @@ fn load_order_config(dir: &PathBuf) -> OrderConfig {
         }
     }
     OrderConfig::default()
+}
+
+fn save_order_config(dir: &PathBuf, config: &OrderConfig) -> Result<(), String> {
+    let order_file = dir.join(".order.json");
+    let content = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
+    fs::write(&order_file, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_sort_preference(section_path: String) -> Result<String, String> {
+    let path = PathBuf::from(&section_path);
+    let config = load_order_config(&path);
+    Ok(config.sort)
+}
+
+#[tauri::command]
+fn set_sort_preference(section_path: String, sort: String) -> Result<(), String> {
+    let path = PathBuf::from(&section_path);
+    let mut config = load_order_config(&path);
+    config.sort = sort;
+    save_order_config(&path, &config)
 }
 
 #[tauri::command]
@@ -137,10 +224,36 @@ fn list_pages(section_path: String) -> Result<Vec<Page>, String> {
             let filename = entry.file_name().to_string_lossy().to_string();
 
             if path.is_file() && filename.ends_with(".md") && !filename.starts_with('.') {
+                // Try frontmatter first, fall back to filesystem
+                let (created, modified) = if let Ok(content) = fs::read_to_string(&path) {
+                    let (fm, _) = parse_frontmatter(&content);
+                    let fm_created = fm.as_ref().and_then(|f| f.created.as_ref()).map(|s| iso_to_timestamp(s));
+                    let fm_modified = fm.as_ref().and_then(|f| f.modified.as_ref()).map(|s| iso_to_timestamp(s));
+
+                    // Fall back to filesystem if frontmatter missing
+                    let metadata = fs::metadata(&path).ok();
+                    let fs_created = metadata.as_ref()
+                        .and_then(|m| m.created().ok())
+                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+                    let fs_modified = metadata.as_ref()
+                        .and_then(|m| m.modified().ok())
+                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+
+                    (fm_created.unwrap_or(fs_created), fm_modified.unwrap_or(fs_modified))
+                } else {
+                    (0, 0)
+                };
+
                 Some(Page {
                     name: filename.trim_end_matches(".md").to_string(),
                     path: path.to_string_lossy().to_string(),
-                    filename: filename,
+                    filename,
+                    created,
+                    modified,
                 })
             } else {
                 None
@@ -148,9 +261,13 @@ fn list_pages(section_path: String) -> Result<Vec<Page>, String> {
         })
         .collect();
 
-    // Sort by order config
+    // Sort by preference
     match order_config.sort.as_str() {
-        "name-desc" => pages.sort_by(|a, b| b.name.cmp(&a.name)),
+        "alpha-desc" | "name-desc" => pages.sort_by(|a, b| b.name.to_lowercase().cmp(&a.name.to_lowercase())),
+        "created-asc" => pages.sort_by(|a, b| a.created.cmp(&b.created)),
+        "created-desc" => pages.sort_by(|a, b| b.created.cmp(&a.created)),
+        "modified-asc" => pages.sort_by(|a, b| a.modified.cmp(&b.modified)),
+        "modified-desc" => pages.sort_by(|a, b| b.modified.cmp(&a.modified)),
         "manual" if !order_config.pages.is_empty() => {
             pages.sort_by(|a, b| {
                 let a_idx = order_config.pages.iter().position(|x| x == &a.filename);
@@ -159,11 +276,11 @@ fn list_pages(section_path: String) -> Result<Vec<Page>, String> {
                     (Some(ai), Some(bi)) => ai.cmp(&bi),
                     (Some(_), None) => std::cmp::Ordering::Less,
                     (None, Some(_)) => std::cmp::Ordering::Greater,
-                    (None, None) => a.name.cmp(&b.name),
+                    (None, None) => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
                 }
             });
         }
-        _ => pages.sort_by(|a, b| a.name.cmp(&b.name)), // name-asc default
+        _ => pages.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase())), // alpha-asc default
     }
 
     // Move pinned to top
@@ -189,7 +306,31 @@ fn read_page(path: String) -> Result<String, String> {
 
 #[tauri::command]
 fn write_page(path: String, content: String) -> Result<(), String> {
-    fs::write(&path, &content).map_err(|e| e.to_string())
+    let file_path = PathBuf::from(&path);
+    let now = iso_now();
+
+    // Parse frontmatter from incoming content
+    let (existing_fm, body) = parse_frontmatter(&content);
+
+    // Get existing frontmatter from file if incoming doesn't have one
+    let old_fm = if existing_fm.is_none() && file_path.exists() {
+        fs::read_to_string(&file_path)
+            .ok()
+            .and_then(|old_content| parse_frontmatter(&old_content).0)
+    } else {
+        None
+    };
+
+    // Merge frontmatter: prefer existing, update modified
+    let mut fm = existing_fm.or(old_fm).unwrap_or_default();
+    if fm.created.is_none() {
+        fm.created = Some(now.clone());
+    }
+    fm.modified = Some(now);
+
+    // Write with updated frontmatter
+    let final_content = format!("{}\n\n{}", format_frontmatter(&fm), body);
+    fs::write(&path, final_content).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -201,12 +342,24 @@ fn create_page(section_path: String, name: String) -> Result<Page, String> {
         return Err("Page already exists".to_string());
     }
 
-    fs::write(&path, format!("# {}\n\n", name)).map_err(|e| e.to_string())?;
+    let now_iso = iso_now();
+    let now_ts = iso_to_timestamp(&now_iso);
+
+    let fm = Frontmatter {
+        created: Some(now_iso.clone()),
+        modified: Some(now_iso),
+        other: std::collections::HashMap::new(),
+    };
+
+    let content = format!("{}\n\n# {}\n\n", format_frontmatter(&fm), name);
+    fs::write(&path, content).map_err(|e| e.to_string())?;
 
     Ok(Page {
         name,
         path: path.to_string_lossy().to_string(),
         filename,
+        created: now_ts,
+        modified: now_ts,
     })
 }
 
@@ -245,12 +398,24 @@ fn create_page_smart(section_path: String) -> Result<Page, String> {
     let filename = format!("{}.md", name);
     let file_path = path.join(&filename);
 
-    fs::write(&file_path, format!("# {}\n\n", name)).map_err(|e| e.to_string())?;
+    let now_iso = iso_now();
+    let now_ts = iso_to_timestamp(&now_iso);
+
+    let fm = Frontmatter {
+        created: Some(now_iso.clone()),
+        modified: Some(now_iso),
+        other: std::collections::HashMap::new(),
+    };
+
+    let content = format!("{}\n\n# {}\n\n", format_frontmatter(&fm), name);
+    fs::write(&file_path, content).map_err(|e| e.to_string())?;
 
     Ok(Page {
         name,
         path: file_path.to_string_lossy().to_string(),
         filename,
+        created: now_ts,
+        modified: now_ts,
     })
 }
 
@@ -287,12 +452,28 @@ fn rename_page(old_path: String, new_name: String) -> Result<Page, String> {
         return Err("A page with that name already exists".to_string());
     }
 
+    // Get timestamps before rename
+    let metadata = fs::metadata(&old_file).ok();
+    let created = metadata.as_ref()
+        .and_then(|m| m.created().ok())
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
     fs::rename(&old_file, &new_path).map_err(|e| e.to_string())?;
+
+    let modified = fs::metadata(&new_path).ok()
+        .and_then(|m| m.modified().ok())
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
 
     Ok(Page {
         name: new_name,
         path: new_path.to_string_lossy().to_string(),
         filename: new_filename,
+        created,
+        modified,
     })
 }
 
@@ -315,12 +496,28 @@ fn move_page(path: String, new_section_path: String) -> Result<Page, String> {
         return Err("A page with that name already exists in the target section".to_string());
     }
 
+    // Get timestamps before move
+    let metadata = fs::metadata(&old_file).ok();
+    let created = metadata.as_ref()
+        .and_then(|m| m.created().ok())
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
     fs::rename(&old_file, &new_path).map_err(|e| e.to_string())?;
+
+    let modified = fs::metadata(&new_path).ok()
+        .and_then(|m| m.modified().ok())
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
 
     Ok(Page {
         name: filename.trim_end_matches(".md").to_string(),
         path: new_path.to_string_lossy().to_string(),
         filename,
+        created,
+        modified,
     })
 }
 
@@ -846,17 +1043,26 @@ fn get_repo_stats() -> Result<RepoStats, String> {
         })
         .unwrap_or(0);
 
-    // Get first commit date (repo age)
-    let first_commit_output = Command::new("git")
-        .args(["log", "--reverse", "--format=%aI", "-1"])
+    // Get first commit date (repo age) - find root commit first
+    let root_commit = Command::new("git")
+        .args(["rev-list", "--max-parents=0", "HEAD"])
         .current_dir(&notes_path)
-        .output();
-
-    let first_commit_date = first_commit_output
+        .output()
         .ok()
         .filter(|o| o.status.success())
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .map(|o| String::from_utf8_lossy(&o.stdout).lines().next().unwrap_or("").to_string())
         .filter(|s| !s.is_empty());
+
+    let first_commit_date = root_commit.and_then(|hash| {
+        Command::new("git")
+            .args(["log", "-1", "--format=%aI", &hash])
+            .current_dir(&notes_path)
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .filter(|s| !s.is_empty())
+    });
 
     // Get current branch
     let branch_output = Command::new("git")
@@ -943,6 +1149,8 @@ pub fn run() {
             get_repo_status,
             get_git_log,
             get_repo_stats,
+            get_sort_preference,
+            set_sort_preference,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
