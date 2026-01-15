@@ -196,7 +196,7 @@ export function updateHeaderData(data: HeaderData) {
   `;
 }
 
-export function scrollToLine(lineNumber: number) {
+export function scrollToLine(lineNumber: number, searchTerm?: string) {
   if (!editorView) return;
 
   // CodeMirror lines are 1-based, but our match_line from search is 0-based
@@ -206,7 +206,24 @@ export function scrollToLine(lineNumber: number) {
     effects: EditorView.scrollIntoView(line.from, { y: 'center' })
   });
 
-  // Briefly highlight the line (optional - adds visual feedback)
+  // If search term provided, find and select it on this line
+  if (searchTerm) {
+    const lineText = line.text.toLowerCase();
+    const termLower = searchTerm.toLowerCase();
+    const matchIndex = lineText.indexOf(termLower);
+
+    if (matchIndex !== -1) {
+      const from = line.from + matchIndex;
+      const to = from + searchTerm.length;
+      editorView.dispatch({
+        selection: { anchor: from, head: to }
+      });
+      editorView.focus();
+      return;
+    }
+  }
+
+  // Fallback: just place cursor at line start
   editorView.dispatch({
     selection: { anchor: line.from }
   });

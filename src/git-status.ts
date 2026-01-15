@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { closeSearchBar } from './search-bar';
 
 interface RepoStatus {
   repo_name: string;
@@ -180,6 +181,9 @@ function renderHistoryPanel(entries: GitLogEntry[]): void {
 }
 
 export function openHistoryPanel(): void {
+  // Close search bar if open (mutual exclusivity)
+  closeSearchBar();
+
   isHistoryOpen = true;
   const container = document.getElementById('git-status-container');
   if (container) {

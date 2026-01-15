@@ -263,9 +263,9 @@ export function scheduleSave() {
   }, 500);
 }
 
-function handleSearchSelect(result: { path: string; section?: string }, matchLine?: number) {
+function handleSearchSelect(result: { path: string; section?: string }, matchLine?: number, searchTerm?: string) {
   const section = result.section || result.path.split('/').slice(-2, -1)[0] || '';
-  navigateToPath(result.path, section, matchLine);
+  navigateToPath(result.path, section, matchLine, searchTerm);
 }
 
 function setupKeyboardShortcuts() {

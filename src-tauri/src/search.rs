@@ -211,32 +211,50 @@ impl SearchIndex {
             // Find line number
             let line_num = content[..pos].matches('\n').count();
 
-            // Extract snippet: ~40 chars before, match, ~40 chars after
-            let start = content[..pos]
-                .char_indices()
-                .rev()
-                .nth(40)
-                .map(|(i, _)| i)
-                .unwrap_or(0);
+            // Find start of line containing match (for cleaner context)
+            let line_start = content[..pos].rfind('\n').map(|i| i + 1).unwrap_or(0);
 
+            // Start from beginning of line, but skip leading whitespace
+            let trimmed_start = content[line_start..pos]
+                .find(|c: char| !c.is_whitespace())
+                .map(|i| line_start + i)
+                .unwrap_or(line_start);
+
+            // If line prefix is too long (>15 chars), start closer to match
+            let start = if pos - trimmed_start > 15 {
+                // Start ~10 chars before match
+                content[..pos]
+                    .char_indices()
+                    .rev()
+                    .nth(10)
+                    .map(|(i, _)| i)
+                    .unwrap_or(trimmed_start)
+            } else {
+                trimmed_start
+            };
+
+            // Send plenty of chars, CSS will truncate to fit available width
             let end_offset = pos + query.len();
             let end = content[end_offset..]
                 .char_indices()
-                .nth(40)
+                .nth(500)
                 .map(|(i, _)| end_offset + i)
                 .unwrap_or(content.len());
 
             let mut snippet = String::new();
-            if start > 0 {
-                snippet.push_str("...");
-            }
-            snippet.push_str(content[start..end].trim());
-            if end < content.len() {
+            if start > line_start {
                 snippet.push_str("...");
             }
 
-            // Clean up newlines
-            let snippet = snippet.replace('\n', " ").replace("  ", " ");
+            // Get snippet and clean it up
+            let raw_snippet = content[start..end].trim();
+            // Stop at newline to keep it clean
+            let clean_snippet = raw_snippet.split('\n').next().unwrap_or(raw_snippet);
+            snippet.push_str(clean_snippet);
+
+            if end < content.len() && !clean_snippet.ends_with("...") {
+                snippet.push_str("...");
+            }
 
             (Some(snippet), Some(line_num))
         } else {

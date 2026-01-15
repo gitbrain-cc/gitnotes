@@ -268,7 +268,7 @@ function renderPages(pages: Page[]) {
   }
 }
 
-export async function selectPage(page: Page, matchLine?: number) {
+export async function selectPage(page: Page, matchLine?: number, searchTerm?: string) {
   // Update UI
   const pagesList = document.getElementById('pages-list');
   if (pagesList) {
@@ -285,7 +285,7 @@ export async function selectPage(page: Page, matchLine?: number) {
     // Scroll to match line if provided
     if (matchLine !== undefined) {
       const { scrollToLine } = await import('./editor');
-      scrollToLine(matchLine);
+      scrollToLine(matchLine, searchTerm);
     }
 
     setStatus('Ready');
@@ -307,7 +307,7 @@ export function getCurrentSection(): Section | null {
   return currentSection;
 }
 
-export async function navigateToPath(path: string, sectionName: string, matchLine?: number) {
+export async function navigateToPath(path: string, sectionName: string, matchLine?: number, searchTerm?: string) {
   // Find the matching section
   const section = sections.find(s => s.name === sectionName);
   if (section && (!currentSection || currentSection.path !== section.path)) {
@@ -325,5 +325,5 @@ export async function navigateToPath(path: string, sectionName: string, matchLin
     filename: filename
   };
 
-  await selectPage(page, matchLine);
+  await selectPage(page, matchLine, searchTerm);
 }

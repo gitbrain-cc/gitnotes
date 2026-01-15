@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { closeHistoryPanel } from './git-status';
 
 interface SearchResult {
   path: string;
@@ -21,10 +22,10 @@ let currentResults: (SearchResult | PageInfo)[] = [];
 let allPages: PageInfo[] = [];
 let recentFiles: string[] = [];
 let recentSearches: string[] = [];
-let onSelectCallback: ((result: SearchResult | PageInfo, matchLine?: number) => void) | null = null;
-let defaultSelectCallback: ((result: SearchResult | PageInfo, matchLine?: number) => void) | null = null;
+let onSelectCallback: ((result: SearchResult | PageInfo, matchLine?: number, searchTerm?: string) => void) | null = null;
+let defaultSelectCallback: ((result: SearchResult | PageInfo, matchLine?: number, searchTerm?: string) => void) | null = null;
 
-const MAX_RECENT_FILES = 8;
+const MAX_RECENT_FILES = 7;
 const MAX_RECENT_SEARCHES = 5;
 const MIN_CONTENT_SEARCH_LENGTH = 3;
 
@@ -108,17 +109,6 @@ function escapeHtml(text: string): string {
 function truncateSection(section: string, maxLen: number = 12): string {
   if (section.length <= maxLen) return section;
   return section.slice(0, maxLen - 1) + '…';
-}
-
-function truncateSnippet(snippet: string, maxLen: number = 70): string {
-  if (snippet.length <= maxLen) return snippet;
-  // Try to cut at word boundary
-  const truncated = snippet.slice(0, maxLen);
-  const lastSpace = truncated.lastIndexOf(' ');
-  if (lastSpace > maxLen - 15) {
-    return truncated.slice(0, lastSpace) + '…';
-  }
-  return truncated + '…';
 }
 
 function highlightMatch(text: string, query: string): string {
@@ -235,7 +225,7 @@ function renderDropdown(query: string): void {
             <span class="result-section">${escapeHtml(truncateSection(sr.section))}</span>
             <span class="result-filename">${escapeHtml(sr.filename)}</span>
           </div>
-          <div class="result-snippet">${highlightMatch(truncateSnippet(sr.snippet || ''), query)}</div>
+          <div class="result-snippet">${highlightMatch(sr.snippet || '', query)}</div>
         `;
         li.addEventListener('click', () => selectResult(index));
         resultsList.appendChild(li);
@@ -265,9 +255,9 @@ function selectResult(index: number): void {
   const callback = onSelectCallback || defaultSelectCallback;
   if (callback) {
     if ('match_line' in result) {
-      callback(result, result.match_line ?? undefined);
+      callback(result, result.match_line ?? undefined, query || undefined);
     } else {
-      callback(result);
+      callback(result, undefined, undefined);
     }
   }
 }
@@ -277,7 +267,10 @@ function scrollToSelected(): void {
   selected?.scrollIntoView({ block: 'nearest' });
 }
 
-export function openSearchBar(onSelect?: (result: SearchResult | PageInfo, matchLine?: number) => void): void {
+export function openSearchBar(onSelect?: (result: SearchResult | PageInfo, matchLine?: number, searchTerm?: string) => void): void {
+  // Close git modal if open (mutual exclusivity)
+  closeHistoryPanel();
+
   if (onSelect) {
     onSelectCallback = onSelect;
   }
@@ -314,7 +307,7 @@ export function isSearchBarOpen(): boolean {
   return isOpen;
 }
 
-export function initSearchBar(onSelect?: (result: SearchResult | PageInfo, matchLine?: number) => void): void {
+export function initSearchBar(onSelect?: (result: SearchResult | PageInfo, matchLine?: number, searchTerm?: string) => void): void {
   if (onSelect) {
     defaultSelectCallback = onSelect;
   }
