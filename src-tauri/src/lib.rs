@@ -24,6 +24,12 @@ pub struct SectionMetadata {
     pub title: Option<String>,
     #[serde(default)]
     pub color: Option<String>,
+    #[serde(default = "default_sort")]
+    pub sort: String,
+    #[serde(default)]
+    pub pinned: Vec<String>,
+    #[serde(default)]
+    pub order: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -91,34 +97,81 @@ fn parse_frontmatter(content: &str) -> (Option<Frontmatter>, &str) {
 
 fn load_section_metadata(section_path: &PathBuf) -> SectionMetadata {
     let metadata_file = section_path.join(".section.md");
-    if !metadata_file.exists() {
-        return SectionMetadata::default();
-    }
+    let order_file = section_path.join(".order.json");
 
-    if let Ok(content) = fs::read_to_string(&metadata_file) {
-        if content.starts_with("---\n") {
-            if let Some(end) = content[4..].find("\n---") {
-                let yaml_str = &content[4..4 + end];
-                if let Ok(metadata) = serde_yaml::from_str::<SectionMetadata>(yaml_str) {
-                    return metadata;
+    // Try loading from .section.md first
+    let mut metadata = if metadata_file.exists() {
+        if let Ok(content) = fs::read_to_string(&metadata_file) {
+            if content.starts_with("---\n") {
+                if let Some(end) = content[4..].find("\n---") {
+                    let yaml_str = &content[4..4 + end];
+                    serde_yaml::from_str::<SectionMetadata>(yaml_str).unwrap_or_default()
+                } else {
+                    SectionMetadata::default()
+                }
+            } else {
+                SectionMetadata::default()
+            }
+        } else {
+            SectionMetadata::default()
+        }
+    } else {
+        SectionMetadata::default()
+    };
+
+    // Migrate from legacy .order.json if it exists
+    if order_file.exists() {
+        if let Ok(content) = fs::read_to_string(&order_file) {
+            if let Ok(legacy) = serde_json::from_str::<OrderConfig>(&content) {
+                // Only migrate if .section.md doesn't have these values yet
+                if metadata.sort == default_sort() && legacy.sort != default_sort() {
+                    metadata.sort = legacy.sort;
+                }
+                if metadata.pinned.is_empty() && !legacy.pinned.is_empty() {
+                    metadata.pinned = legacy.pinned;
+                }
+                if metadata.order.is_empty() && !legacy.pages.is_empty() {
+                    metadata.order = legacy.pages;
+                }
+                // Save migrated data to .section.md and remove old file
+                if save_section_metadata(section_path, &metadata).is_ok() {
+                    let _ = fs::remove_file(&order_file);
                 }
             }
         }
     }
 
-    SectionMetadata::default()
+    metadata
 }
 
 fn save_section_metadata(section_path: &PathBuf, metadata: &SectionMetadata) -> Result<(), String> {
     let metadata_file = section_path.join(".section.md");
 
     let mut lines = vec!["---".to_string()];
+
+    // Write fields only if they have non-default values
     if let Some(ref title) = metadata.title {
         lines.push(format!("title: \"{}\"", title));
     }
     if let Some(ref color) = metadata.color {
         lines.push(format!("color: \"{}\"", color));
     }
+    if !metadata.sort.is_empty() && metadata.sort != default_sort() {
+        lines.push(format!("sort: {}", metadata.sort));
+    }
+    if !metadata.pinned.is_empty() {
+        lines.push("pinned:".to_string());
+        for item in &metadata.pinned {
+            lines.push(format!("  - {}", item));
+        }
+    }
+    if !metadata.order.is_empty() {
+        lines.push("order:".to_string());
+        for item in &metadata.order {
+            lines.push(format!("  - {}", item));
+        }
+    }
+
     lines.push("---".to_string());
 
     let content = lines.join("\n");
@@ -128,7 +181,10 @@ fn save_section_metadata(section_path: &PathBuf, metadata: &SectionMetadata) -> 
 #[tauri::command]
 fn set_section_metadata(section_path: String, title: Option<String>, color: Option<String>) -> Result<(), String> {
     let path = PathBuf::from(&section_path);
-    let metadata = SectionMetadata { title, color };
+    // Load existing metadata to preserve sort/pinned/order fields
+    let mut metadata = load_section_metadata(&path);
+    metadata.title = title;
+    metadata.color = color;
     save_section_metadata(&path, &metadata)
 }
 
@@ -202,16 +258,16 @@ fn save_order_config(dir: &PathBuf, config: &OrderConfig) -> Result<(), String> 
 #[tauri::command]
 fn get_sort_preference(section_path: String) -> Result<String, String> {
     let path = PathBuf::from(&section_path);
-    let config = load_order_config(&path);
-    Ok(config.sort)
+    let metadata = load_section_metadata(&path);
+    Ok(metadata.sort)
 }
 
 #[tauri::command]
 fn set_sort_preference(section_path: String, sort: String) -> Result<(), String> {
     let path = PathBuf::from(&section_path);
-    let mut config = load_order_config(&path);
-    config.sort = sort;
-    save_order_config(&path, &config)
+    let mut metadata = load_section_metadata(&path);
+    metadata.sort = sort;
+    save_section_metadata(&path, &metadata)
 }
 
 #[tauri::command]
@@ -270,7 +326,7 @@ fn list_pages(section_path: String) -> Result<Vec<Page>, String> {
         return Err(format!("Section not found: {}", section_path));
     }
 
-    let order_config = load_order_config(&path);
+    let section_meta = load_section_metadata(&path);
 
     let mut pages: Vec<Page> = fs::read_dir(&path)
         .map_err(|e| e.to_string())?
@@ -318,16 +374,16 @@ fn list_pages(section_path: String) -> Result<Vec<Page>, String> {
         .collect();
 
     // Sort by preference
-    match order_config.sort.as_str() {
+    match section_meta.sort.as_str() {
         "alpha-desc" | "name-desc" => pages.sort_by(|a, b| b.name.to_lowercase().cmp(&a.name.to_lowercase())),
         "created-asc" => pages.sort_by(|a, b| a.created.cmp(&b.created)),
         "created-desc" => pages.sort_by(|a, b| b.created.cmp(&a.created)),
         "modified-asc" => pages.sort_by(|a, b| a.modified.cmp(&b.modified)),
         "modified-desc" => pages.sort_by(|a, b| b.modified.cmp(&a.modified)),
-        "manual" if !order_config.pages.is_empty() => {
+        "manual" if !section_meta.order.is_empty() => {
             pages.sort_by(|a, b| {
-                let a_idx = order_config.pages.iter().position(|x| x == &a.filename);
-                let b_idx = order_config.pages.iter().position(|x| x == &b.filename);
+                let a_idx = section_meta.order.iter().position(|x| x == &a.filename);
+                let b_idx = section_meta.order.iter().position(|x| x == &b.filename);
                 match (a_idx, b_idx) {
                     (Some(ai), Some(bi)) => ai.cmp(&bi),
                     (Some(_), None) => std::cmp::Ordering::Less,
@@ -340,10 +396,10 @@ fn list_pages(section_path: String) -> Result<Vec<Page>, String> {
     }
 
     // Move pinned to top
-    if !order_config.pinned.is_empty() {
+    if !section_meta.pinned.is_empty() {
         pages.sort_by(|a, b| {
-            let a_pinned = order_config.pinned.contains(&a.filename);
-            let b_pinned = order_config.pinned.contains(&b.filename);
+            let a_pinned = section_meta.pinned.contains(&a.filename);
+            let b_pinned = section_meta.pinned.contains(&b.filename);
             match (a_pinned, b_pinned) {
                 (true, false) => std::cmp::Ordering::Less,
                 (false, true) => std::cmp::Ordering::Greater,
