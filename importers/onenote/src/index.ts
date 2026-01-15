@@ -98,6 +98,10 @@ async function processDocx(
     const sectionDir = join(outputDir, folderName);
     await mkdir(sectionDir, { recursive: true });
 
+    // Create .section.md with original name as title
+    const sectionMd = `---\ntitle: ${sectionName}\n---\n`;
+    await writeFile(join(sectionDir, '.section.md'), sectionMd, 'utf-8');
+
     const outPath = join(sectionDir, `${sanitizeFilename(sectionName)}.md`);
     await writeFile(outPath, markdown, 'utf-8');
     return 1;
@@ -109,6 +113,10 @@ async function processDocx(
   const folderName = slugify(sectionName);
   const sectionDir = join(outputDir, folderName);
   await mkdir(sectionDir, { recursive: true });
+
+  // Create .section.md with original name as title
+  const sectionMd = `---\ntitle: ${sectionName}\n---\n`;
+  await writeFile(join(sectionDir, '.section.md'), sectionMd, 'utf-8');
 
   // Sort pages by date (oldest first) for file creation order
   const sortedPages = [...pages].sort((a, b) => {
