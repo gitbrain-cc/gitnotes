@@ -1,59 +1,34 @@
 # NoteOne - Claude Instructions
 
-## Project Overview
-
-NoteOne is a lightweight markdown notes app replacing OneNote. Built with Tauri 2.0 (Rust) + TypeScript + CodeMirror 6.
-
-## Architecture
-
-- **src-tauri/src/lib.rs** - Rust backend: file system operations, config loading
-- **src/main.ts** - Frontend entry, orchestration, auto-save
-- **src/sidebar.ts** - Two-panel navigation (sections/pages)
-- **src/editor.ts** - CodeMirror setup and content management
-- **src/colorpicker.ts** - Color picker for section ribbons
-- **src/styles/main.css** - Styling with CSS variables for theming
-
-## Key Patterns
-
-- No React/Vue - vanilla TypeScript only
-- Tauri IPC for frontend-backend communication via `invoke()`
-- Auto-save with 500ms debounce
-- Custom ordering via `.order.json` files in notes directory
+Lightweight markdown notes app. Tauri 2.0 (Rust) + TypeScript + CodeMirror 6.
 
 ## Development
 
 ```bash
-npm run tauri dev   # Run dev mode
-npm run tauri build # Build release
+npm run tauri dev   # Dev mode
+npm run tauri build # Release build
 ```
 
-## Current State (v0.1)
+## Architecture
 
-Working:
-- Section/page navigation
-- Markdown editing with auto-save
-- Custom ordering
-- Dark mode (warm orange theme)
-- Page management (create/rename/delete/move)
-- Section metadata (color ribbons, display names via `.section.md`)
-- Quick switcher (Cmd+P)
+| File | Purpose |
+|------|---------|
+| `src-tauri/src/lib.rs` | Rust backend: filesystem, git, search index |
+| `src/main.ts` | Frontend entry, orchestration |
+| `src/sidebar.ts` | Section/page navigation |
+| `src/editor.ts` | CodeMirror setup |
+| `src/search-bar.ts` | Unified search UI |
+| `src/git-status.ts` | Git integration UI |
 
-TODO:
-- Full-text search (Cmd+Shift+F)
-- Inline markdown rendering
-- More keyboard shortcuts
+## Key Patterns
 
-## Notes Directory
+- Vanilla TypeScript (no React/Vue)
+- Tauri IPC via `invoke()`
+- Auto-save with 500ms debounce
 
-Default: `~/tetronomis/dotfiles/notes/`
+## Documentation
 
-Structure:
-```
-notes/
-├── .order.json        # Section ordering
-├── 1-weeks/
-│   ├── .order.json    # Page ordering for this section
-│   ├── .section.md    # Section metadata (title, color)
-│   └── *.md
-└── other-sections/
-```
+- `docs/usage/` - User documentation (search, git, shortcuts, etc.)
+- `docs/todo/` - Roadmap and pending features
+- `docs/design/` - UI/UX specifications
+- `docs/plans/` - Historical design & implementation plans (dated)
