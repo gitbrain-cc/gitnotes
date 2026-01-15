@@ -14,6 +14,16 @@ import { join, basename, extname } from 'path';
 import { docxToMarkdown } from './converter.js';
 import { splitMarkdown, sanitizeFilename, type Page } from './splitter.js';
 
+/** Convert section name to normalized folder name (kebab-case) */
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/([a-z])([A-Z])/g, '$1-$2') // camelCase -> camel-case
+    .replace(/[^a-z0-9]+/g, '-') // non-alphanumeric -> dash
+    .replace(/^-+|-+$/g, '') // trim dashes
+    .replace(/-+/g, '-'); // collapse multiple dashes
+}
+
 interface Args {
   input: string;
   output: string;
@@ -84,21 +94,23 @@ async function processDocx(
   if (pages.length === 0) {
     // No page headers found, save as single file
     console.log('  No page headers found, keeping as single file');
-    const sectionDir = join(outputDir, sectionName);
+    const folderName = slugify(sectionName);
+    const sectionDir = join(outputDir, folderName);
     await mkdir(sectionDir, { recursive: true });
 
-    const outPath = join(sectionDir, `${sectionName}.md`);
+    const outPath = join(sectionDir, `${sanitizeFilename(sectionName)}.md`);
     await writeFile(outPath, markdown, 'utf-8');
     return 1;
   }
 
   console.log(`  Found ${pages.length} pages`);
 
-  // Create section directory
-  const sectionDir = join(outputDir, sectionName);
+  // Create section directory with normalized name
+  const folderName = slugify(sectionName);
+  const sectionDir = join(outputDir, folderName);
   await mkdir(sectionDir, { recursive: true });
 
-  // Sort pages by date (oldest first)
+  // Sort pages by date (oldest first) for file creation order
   const sortedPages = [...pages].sort((a, b) => {
     if (!a.createdAt) return 1;
     if (!b.createdAt) return -1;
@@ -121,13 +133,12 @@ async function processDocx(
 
     const filePath = join(sectionDir, filename);
 
-    // Build content with front-matter
-    let content = '';
+    // Build content with front-matter (only created - no H1)
+    let content = page.content;
     if (page.createdAt) {
-      const isoDate = page.createdAt.toISOString().slice(0, 19); // Remove milliseconds and Z
-      content = `---\ncreated: ${isoDate}\n---\n\n`;
+      const isoDate = page.createdAt.toISOString().slice(0, 19);
+      content = `---\ncreated: ${isoDate}\n---\n\n${page.content}`;
     }
-    content += `# ${page.title}\n\n${page.content}`;
 
     await writeFile(filePath, content, 'utf-8');
 

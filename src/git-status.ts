@@ -239,6 +239,13 @@ export function initGitStatus(): void {
     }
   });
 
+  // Click modal box (visible when open) to close
+  const modalBox = document.getElementById('git-modal-box');
+  modalBox?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeHistoryPanel();
+  });
+
   // Add repository button (TODO: implement)
   addRepoBtn?.addEventListener('click', (e) => {
     e.stopPropagation();

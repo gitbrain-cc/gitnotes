@@ -49,12 +49,14 @@ Notes are stored as plain markdown:
 - Each section is a folder
 - Each page is a `.md` file
 
-See [Notes Directory Format](./notes-directory-format.md) for details on the file structure.
+See [Frontmatter](./frontmatter.md) and [Section Metadata](./section-metadata.md) for details.
 
 ## More Help
 
 - [Editor](./editor.md)
+- [Frontmatter](./frontmatter.md)
+- [Git Integration](./git-integration.md)
 - [Keyboard Shortcuts](./keyboard-shortcuts.md)
 - [Page Management](./page-management.md)
 - [Search](./search.md)
-- [Git Integration](./git-integration.md)
+- [Section Metadata](./section-metadata.md)

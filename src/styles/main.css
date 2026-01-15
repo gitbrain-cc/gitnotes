@@ -294,9 +294,13 @@ body {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
-/* Open state: show modal */
+/* Open state: show modal, hide anchor pointer events */
 #git-status-container.active #git-modal {
   display: block;
+}
+
+#git-status-container.active #git-status-box {
+  pointer-events: none;
 }
 
 #git-repo-info {
