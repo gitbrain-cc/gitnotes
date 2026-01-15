@@ -2,7 +2,7 @@
 
 ## Editor
 
-- [ ] Inline markdown rendering (live preview)
+- [x] Inline markdown rendering (live preview)
 
 ## UX
 

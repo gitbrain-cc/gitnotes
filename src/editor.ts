@@ -5,6 +5,7 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
 import { scheduleSave } from './main';
 import { FrontMatter, parseFrontMatter, serializeFrontMatter } from './frontmatter';
+import { livePreview } from './editor/live-preview';
 
 let editorView: EditorView | null = null;
 let currentFrontMatter: FrontMatter = {};
@@ -129,6 +130,7 @@ export function initEditor() {
         keymap.of([...defaultKeymap, ...historyKeymap]),
         theme,
         selectionBrackets,
+        livePreview,
         updateListener,
         EditorView.lineWrapping,
       ],

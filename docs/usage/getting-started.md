@@ -40,7 +40,7 @@ Changes save automatically. The status bar shows "Modified..." then "Saved".
 Your notes directory is a git repo. The top-left shows commit status and history.
 
 ### Markdown
-Full markdown support with syntax highlighting. Headers, bold, italic, links, and code all render with visual styling.
+Full markdown support with live preview. Formatting renders inline while you type, with syntax revealed when your cursor is on the line. See [Editor](./editor.md) for details.
 
 ## Files
 
@@ -53,6 +53,7 @@ See [Notes Directory Format](./notes-directory-format.md) for details on the fil
 
 ## More Help
 
+- [Editor](./editor.md)
 - [Keyboard Shortcuts](./keyboard-shortcuts.md)
 - [Page Management](./page-management.md)
 - [Search](./search.md)
