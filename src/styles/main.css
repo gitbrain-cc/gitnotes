@@ -1025,9 +1025,10 @@ body {
   color: #e74c3c;
 }
 
+/* CTA buttons - standard hover: bg-secondary + text-primary */
 .settings-action-btn {
   background: none;
-  border: 1px dashed var(--border-color);
+  border: 1px solid var(--border-color);
   padding: 10px 16px;
   border-radius: 8px;
   color: var(--text-secondary);
@@ -1037,7 +1038,7 @@ body {
 }
 
 .settings-action-btn:hover {
-  border-color: var(--accent-color);
+  background: var(--bg-secondary);
   color: var(--text-primary);
 }
 
@@ -1110,4 +1111,166 @@ body {
 .git-mode-desc {
   font-size: 11px;
   color: var(--text-secondary);
+}
+
+/* Vault actions - two buttons */
+#vault-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+#vault-actions .settings-action-btn {
+  flex: 1;
+}
+
+#vault-actions .settings-action-btn.secondary {
+  background: transparent;
+}
+
+/* Clone form fields */
+.clone-field {
+  margin-bottom: 12px;
+}
+
+.clone-field label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.clone-field input {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg-tertiary, rgba(0,0,0,0.2));
+  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.clone-field input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.clone-path-row {
+  display: flex;
+  gap: 8px;
+}
+
+.clone-path-row input {
+  flex: 1;
+}
+
+.clone-browse {
+  padding: 8px 12px;
+  background: var(--bg-tertiary, rgba(255,255,255,0.05));
+  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.clone-browse:hover {
+  background: var(--bg-secondary);
+}
+
+.clone-error {
+  color: #ef4444;
+  font-size: 12px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 6px;
+}
+
+.clone-error.hidden {
+  display: none;
+}
+
+.clone-progress {
+  margin-bottom: 12px;
+}
+
+.clone-progress.hidden {
+  display: none;
+}
+
+.clone-progress span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.progress-bar {
+  height: 4px;
+  background: var(--bg-tertiary, rgba(255,255,255,0.1));
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent-color);
+  width: 0%;
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+}
+
+@keyframes progress-indeterminate {
+  0% { width: 0%; margin-left: 0%; }
+  50% { width: 30%; margin-left: 35%; }
+  100% { width: 0%; margin-left: 100%; }
+}
+
+.clone-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.clone-actions .settings-action-btn {
+  padding: 8px 16px;
+}
+
+.clone-actions .settings-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Clone modal */
+#clone-overlay {
+  z-index: 2001; /* Above settings modal (2000) */
+}
+
+#clone-modal {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.clone-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1));
+}
+
+.clone-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.clone-modal-content {
+  padding: 20px;
 }

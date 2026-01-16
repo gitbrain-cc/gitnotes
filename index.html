@@ -133,7 +133,10 @@
         <div class="settings-panels">
           <div id="panel-repositories" class="settings-panel active">
             <div id="vault-list"></div>
-            <button id="add-vault-btn" class="settings-action-btn">+ Add repository</button>
+            <div id="vault-actions">
+              <button id="add-local-btn" class="settings-action-btn">+ Add Local Folder</button>
+              <button id="clone-repo-btn" class="settings-action-btn secondary">+ Clone Repository</button>
+            </div>
           </div>
           <div id="panel-git" class="settings-panel">
             <label class="settings-label">Commit mode</label>
@@ -154,6 +157,37 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="clone-overlay" class="modal-overlay hidden">
+    <div id="clone-modal">
+      <div class="clone-modal-header">
+        <h3>Clone Repository</h3>
+        <button id="clone-modal-close" class="modal-close">&times;</button>
+      </div>
+      <div class="clone-modal-content">
+        <div class="clone-field">
+          <label for="clone-url">Repository URL</label>
+          <input type="text" id="clone-url" placeholder="git@github.com:user/repo.git" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="clone-field">
+          <label for="clone-path">Clone to</label>
+          <div class="clone-path-row">
+            <input type="text" id="clone-path" readonly>
+            <button id="clone-browse-btn" class="clone-browse">Browse</button>
+          </div>
+        </div>
+        <div id="clone-error" class="clone-error hidden"></div>
+        <div id="clone-progress" class="clone-progress hidden">
+          <span>Cloning repository...</span>
+          <div class="progress-bar"><div class="progress-fill"></div></div>
+        </div>
+        <div class="clone-actions">
+          <button id="clone-cancel-btn" class="settings-action-btn secondary">Cancel</button>
+          <button id="clone-submit-btn" class="settings-action-btn" disabled>Clone</button>
         </div>
       </div>
     </div>

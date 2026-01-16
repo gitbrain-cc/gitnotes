@@ -14,11 +14,15 @@ npm run tauri build # Release build
 | File | Purpose |
 |------|---------|
 | `src-tauri/src/lib.rs` | Rust backend: filesystem, git, search index |
+| `src-tauri/src/search.rs` | Tantivy full-text search |
 | `src/main.ts` | Frontend entry, orchestration |
 | `src/sidebar.ts` | Section/note navigation |
 | `src/editor.ts` | CodeMirror setup |
+| `src/editor/live-preview.ts` | Inline markdown rendering |
 | `src/search-bar.ts` | Unified search UI |
 | `src/git-status.ts` | Git integration UI |
+| `src/settings.ts` | Settings modal |
+| `src/contextmenu.ts` | Right-click menus |
 
 ## Key Patterns
 

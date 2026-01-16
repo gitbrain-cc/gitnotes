@@ -173,6 +173,30 @@ fn generate_id() -> String {
     format!("{:x}", duration.as_millis())
 }
 
+/// Parse repository name from a git URL
+/// Handles: git@github.com:user/repo.git, ssh://git@github.com/user/repo.git, https://...
+fn parse_repo_name(url: &str) -> Option<String> {
+    let url = url.trim();
+
+    // Extract last path component
+    let name = if url.contains(':') && !url.starts_with("ssh://") && !url.starts_with("http") {
+        // git@github.com:user/repo.git format
+        url.split(':').last()?.split('/').last()?
+    } else {
+        // ssh://git@github.com/user/repo.git or https:// URL format
+        url.split('/').last()?
+    };
+
+    // Remove .git suffix
+    let name = name.strip_suffix(".git").unwrap_or(name);
+
+    if name.is_empty() {
+        None
+    } else {
+        Some(name.to_string())
+    }
+}
+
 /// Parse git remote URL and return (provider, repo)
 /// Handles: git@github.com:user/repo.git, https://github.com/user/repo.git
 fn parse_git_remote(url: &str) -> Option<(String, String)> {
@@ -1267,6 +1291,12 @@ pub struct RepoStats {
     pub branch_count: u32,
 }
 
+/// Check if a path is a git repository (has a .git directory)
+fn is_git_repository(path: &str) -> bool {
+    let git_dir = std::path::Path::new(path).join(".git");
+    git_dir.exists() && git_dir.is_dir()
+}
+
 // Settings commands
 #[tauri::command]
 fn get_settings() -> Settings {
@@ -1411,6 +1441,12 @@ async fn add_vault(app: tauri::AppHandle) -> Result<Option<Vault>, String> {
     match folder {
         Some(path) => {
             let path_str = path.to_string();
+
+            // Validate it's a git repository
+            if !is_git_repository(&path_str) {
+                return Err("Not a git repository. Please select a folder with git initialized.".to_string());
+            }
+
             let name = std::path::Path::new(&path_str)
                 .file_name()
                 .and_then(|n| n.to_str())
@@ -1455,6 +1491,31 @@ fn set_active_vault(vault_id: String) -> Result<(), String> {
     } else {
         Err("Vault not found".to_string())
     }
+}
+
+#[tauri::command]
+fn add_existing_vault(path: String) -> Result<Vault, String> {
+    if !is_git_repository(&path) {
+        return Err("Not a git repository".to_string());
+    }
+
+    let name = std::path::Path::new(&path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("notes")
+        .to_string();
+
+    let vault = Vault {
+        id: generate_id(),
+        name,
+        path,
+    };
+
+    let mut settings = load_settings();
+    settings.vaults.push(vault.clone());
+    save_settings(&settings)?;
+
+    Ok(vault)
 }
 
 #[tauri::command]
@@ -1546,6 +1607,100 @@ fn get_repo_stats() -> Result<RepoStats, String> {
         current_branch,
         branch_count,
     })
+}
+
+// Clone repository commands
+#[derive(serde::Serialize)]
+enum ClonePathStatus {
+    Empty,
+    SameRemote,
+    DifferentRemote,
+    NotGit,
+    NotEmpty,
+}
+
+#[tauri::command]
+fn check_clone_path(url: String, path: String) -> Result<ClonePathStatus, String> {
+    let path = std::path::Path::new(&path);
+
+    if !path.exists() {
+        return Ok(ClonePathStatus::Empty);
+    }
+
+    // Check if it's a git repo
+    let git_dir = path.join(".git");
+    if !git_dir.exists() {
+        // Folder exists but not a git repo - check if empty
+        if std::fs::read_dir(path).map(|mut d| d.next().is_none()).unwrap_or(false) {
+            return Ok(ClonePathStatus::Empty);
+        }
+        return Ok(ClonePathStatus::NotEmpty);
+    }
+
+    // It's a git repo - check if same remote
+    let output = std::process::Command::new("git")
+        .args(["remote", "get-url", "origin"])
+        .current_dir(path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Ok(ClonePathStatus::NotGit);
+    }
+
+    let existing_remote = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+    // Normalize URLs for comparison (remove .git suffix, trailing slashes)
+    let normalize = |u: &str| u.trim().trim_end_matches('/').trim_end_matches(".git").to_string();
+
+    if normalize(&existing_remote) == normalize(&url) {
+        Ok(ClonePathStatus::SameRemote)
+    } else {
+        Ok(ClonePathStatus::DifferentRemote)
+    }
+}
+
+#[tauri::command]
+async fn clone_vault(_app: tauri::AppHandle, url: String, path: String) -> Result<Vault, String> {
+    // Create parent directory if needed
+    let parent = std::path::Path::new(&path).parent();
+    if let Some(parent) = parent {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+
+    // Run git clone
+    let output = std::process::Command::new("git")
+        .args(["clone", &url, &path])
+        .output()
+        .map_err(|e| format!("Failed to run git: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Clone failed: {}", stderr.trim()));
+    }
+
+    // Create vault
+    let name = parse_repo_name(&url).unwrap_or_else(|| "notes".to_string());
+    let vault = Vault {
+        id: generate_id(),
+        name,
+        path: path.clone(),
+    };
+
+    // Save to settings
+    let mut settings = load_settings();
+    settings.vaults.push(vault.clone());
+    save_settings(&settings)?;
+
+    Ok(vault)
+}
+
+#[tauri::command]
+fn get_default_clone_path(url: String) -> Result<String, String> {
+    let name = parse_repo_name(&url).ok_or("Invalid repository URL")?;
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let path = home.join("GitNotes").join(&name);
+    Ok(path.to_string_lossy().to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1647,8 +1802,12 @@ pub fn run() {
             add_vault,
             remove_vault,
             set_active_vault,
+            add_existing_vault,
             set_git_mode,
             get_git_mode,
+            check_clone_path,
+            clone_vault,
+            get_default_clone_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
