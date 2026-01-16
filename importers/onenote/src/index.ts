@@ -129,24 +129,26 @@ async function processDocx(
   const usedNames = new Set<string>();
 
   for (const page of sortedPages) {
-    let filename = sanitizeFilename(page.title) + '.md';
+    const baseSlug = slugify(page.title) || 'untitled';
+    let filename = baseSlug + '.md';
 
     // Handle filename collisions
     let counter = 1;
-    while (usedNames.has(filename.toLowerCase())) {
-      filename = `${sanitizeFilename(page.title)}_${counter}.md`;
+    while (usedNames.has(filename)) {
+      filename = `${baseSlug}-${counter}.md`;
       counter++;
     }
-    usedNames.add(filename.toLowerCase());
+    usedNames.add(filename);
 
     const filePath = join(sectionDir, filename);
 
-    // Build content with front-matter (only created - no H1)
-    let content = page.content;
+    // Build content with front-matter (title + created)
+    const frontmatterLines = [`title: ${page.title}`];
     if (page.createdAt) {
       const isoDate = page.createdAt.toISOString().slice(0, 19);
-      content = `---\ncreated: ${isoDate}\n---\n\n${page.content}`;
+      frontmatterLines.push(`created: ${isoDate}`);
     }
+    const content = `---\n${frontmatterLines.join('\n')}\n---\n\n${page.content}`;
 
     await writeFile(filePath, content, 'utf-8');
 
