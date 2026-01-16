@@ -771,3 +771,343 @@ body {
   background: var(--bg-tertiary);
   color: var(--text-primary);
 }
+
+/* Settings Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-overlay.hidden {
+  display: none;
+}
+
+#settings-modal {
+  width: 500px;
+  height: 350px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+}
+
+.settings-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  border-right: 1px solid var(--border-color);
+  min-width: 120px;
+}
+
+.settings-tab {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  text-align: left;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.settings-tab:hover {
+  background: var(--bg-secondary);
+}
+
+.settings-tab.active {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.settings-panels {
+  flex: 1;
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.settings-panel {
+  display: none;
+}
+
+.settings-panel.active {
+  display: block;
+}
+
+/* Settings button in top bar */
+#settings-btn {
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  margin-right: 12px;
+}
+
+#settings-btn:hover {
+  color: var(--text-primary);
+}
+
+/* Vault list */
+#vault-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.vault-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 14px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  gap: 12px;
+}
+
+.vault-item:hover {
+  background: var(--bg-tertiary, var(--bg-secondary));
+}
+
+.vault-item.active {
+  border: 1px solid var(--accent-color);
+}
+
+.vault-radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.vault-item.active .vault-radio {
+  border-color: var(--accent-color);
+}
+
+.vault-item.active .vault-radio::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--accent-color);
+  border-radius: 50%;
+}
+
+.vault-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.vault-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.vault-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vault-path {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.vault-git {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary, rgba(255,255,255,0.05));
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.vault-git svg {
+  stroke: var(--text-secondary);
+}
+
+.vault-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-tertiary, var(--text-secondary));
+}
+
+.vault-counts {
+  opacity: 0.8;
+}
+
+.vault-modified {
+  opacity: 0.6;
+}
+
+.vault-modified::before {
+  content: '·';
+  margin-right: 12px;
+}
+
+.vault-remove {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.vault-item:hover .vault-remove {
+  opacity: 1;
+}
+
+.vault-remove:hover {
+  color: #e74c3c;
+}
+
+.settings-action-btn {
+  background: none;
+  border: 1px dashed var(--border-color);
+  padding: 10px 16px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  width: 100%;
+  font-size: 13px;
+}
+
+.settings-action-btn:hover {
+  border-color: var(--accent-color);
+  color: var(--text-primary);
+}
+
+/* Git settings */
+.settings-label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+/* Git mode options */
+#git-mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.git-mode-option {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  gap: 12px;
+}
+
+.git-mode-option:hover {
+  background: var(--bg-tertiary, var(--bg-secondary));
+}
+
+.git-mode-option.active {
+  border: 1px solid var(--accent-color);
+}
+
+.git-mode-radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.git-mode-option.active .git-mode-radio {
+  border-color: var(--accent-color);
+}
+
+.git-mode-option.active .git-mode-radio::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--accent-color);
+  border-radius: 50%;
+}
+
+.git-mode-info {
+  flex: 1;
+}
+
+.git-mode-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.git-mode-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+}

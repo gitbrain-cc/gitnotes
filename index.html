@@ -84,9 +84,9 @@
         </aside>
         <aside id="pages" class="sidebar">
           <div class="sidebar-header">
-            <span>Pages</span>
+            <span>Notes</span>
             <div id="sort-container">
-              <button id="sort-btn" title="Sort pages">
+              <button id="sort-btn" title="Sort notes">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="4" y1="6" x2="16" y2="6"></line>
                   <line x1="4" y1="12" x2="12" y2="12"></line>
@@ -104,7 +104,7 @@
           </div>
           <ul id="pages-list"></ul>
           <div class="sidebar-footer">
-            <button id="add-page-btn" class="sidebar-add-btn">+ Add page</button>
+            <button id="add-page-btn" class="sidebar-add-btn">+ Add note</button>
           </div>
         </aside>
       </div>
@@ -118,6 +118,46 @@
     <span id="status-text">Ready</span>
     <span id="word-count"></span>
   </footer>
+
+  <div id="settings-overlay" class="modal-overlay hidden">
+    <div id="settings-modal">
+      <div class="settings-header">
+        <h2>Settings</h2>
+        <button id="settings-close" class="modal-close">&times;</button>
+      </div>
+      <div class="settings-content">
+        <nav class="settings-nav">
+          <button class="settings-tab active" data-tab="repositories">Repositories</button>
+          <button class="settings-tab" data-tab="git">Git</button>
+        </nav>
+        <div class="settings-panels">
+          <div id="panel-repositories" class="settings-panel active">
+            <div id="vault-list"></div>
+            <button id="add-vault-btn" class="settings-action-btn">+ Add repository</button>
+          </div>
+          <div id="panel-git" class="settings-panel">
+            <label class="settings-label">Commit mode</label>
+            <div id="git-mode-options">
+              <div class="git-mode-option active" data-mode="simple">
+                <div class="git-mode-radio"></div>
+                <div class="git-mode-info">
+                  <div class="git-mode-name">Simple</div>
+                  <div class="git-mode-desc">Auto-commit on every save</div>
+                </div>
+              </div>
+              <div class="git-mode-option" data-mode="manual">
+                <div class="git-mode-radio"></div>
+                <div class="git-mode-info">
+                  <div class="git-mode-name">Manual</div>
+                  <div class="git-mode-desc">Save only, commit via git status box</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="/src/main.ts"></script>
 </body>

@@ -15,7 +15,7 @@ npm run tauri build # Release build
 |------|---------|
 | `src-tauri/src/lib.rs` | Rust backend: filesystem, git, search index |
 | `src/main.ts` | Frontend entry, orchestration |
-| `src/sidebar.ts` | Section/page navigation |
+| `src/sidebar.ts` | Section/note navigation |
 | `src/editor.ts` | CodeMirror setup |
 | `src/search-bar.ts` | Unified search UI |
 | `src/git-status.ts` | Git integration UI |
@@ -25,6 +25,16 @@ npm run tauri build # Release build
 - Vanilla TypeScript (no React/Vue)
 - Tauri IPC via `invoke()`
 - Auto-save with 500ms debounce
+
+## Terminology
+
+| Concept | UI Term | Code Term | Rationale |
+|---------|---------|-----------|-----------|
+| Top-level container | **Repository** | `Vault` | Git-native app; "Repository" in UI aligns with Git fundamentals |
+| Individual markdown file | **Note** | `Note` | Consistent everywhere, matches app name "NoteOne" |
+| Folder grouping | **Section** | `Section` | Consistent everywhere |
+
+**Note:** Only "Repository" vs `Vault` differs between UI and code. Use "Repository" in user-facing strings, `Vault` in code.
 
 ## Documentation
 

@@ -9,7 +9,7 @@ interface SearchResult {
   match_line: number | null;
 }
 
-interface PageInfo {
+interface NoteInfo {
   name: string;
   path: string;
   section: string;
@@ -18,12 +18,12 @@ interface PageInfo {
 // State
 let isOpen = false;
 let selectedIndex = 0;
-let currentResults: (SearchResult | PageInfo)[] = [];
-let allPages: PageInfo[] = [];
+let currentResults: (SearchResult | NoteInfo)[] = [];
+let allNotes: NoteInfo[] = [];
 let recentFiles: string[] = [];
 let recentSearches: string[] = [];
-let onSelectCallback: ((result: SearchResult | PageInfo, matchLine?: number, searchTerm?: string) => void) | null = null;
-let defaultSelectCallback: ((result: SearchResult | PageInfo, matchLine?: number, searchTerm?: string) => void) | null = null;
+let onSelectCallback: ((result: SearchResult | NoteInfo, matchLine?: number, searchTerm?: string) => void) | null = null;
+let defaultSelectCallback: ((result: SearchResult | NoteInfo, matchLine?: number, searchTerm?: string) => void) | null = null;
 
 const MAX_RECENT_FILES = 7;
 const MAX_RECENT_SEARCHES = 5;
@@ -33,8 +33,8 @@ const MIN_CONTENT_SEARCH_LENGTH = 3;
 const RECENT_FILES_KEY = 'noteone_recent_files';
 const RECENT_SEARCHES_KEY = 'noteone_recent_searches';
 
-export async function loadAllPages(): Promise<void> {
-  allPages = await invoke('list_all_pages');
+export async function loadAllNotes(): Promise<void> {
+  allNotes = await invoke('list_all_notes');
 }
 
 export function addRecentFile(path: string): void {
@@ -77,10 +77,10 @@ function fuzzyMatch(query: string, text: string): boolean {
   return queryIndex === lowerQuery.length;
 }
 
-function filterByFilename(query: string): PageInfo[] {
+function filterByFilename(query: string): NoteInfo[] {
   if (!query) return [];
-  return allPages
-    .filter(page => fuzzyMatch(query, page.name) || fuzzyMatch(query, page.section))
+  return allNotes
+    .filter(note => fuzzyMatch(query, note.name) || fuzzyMatch(query, note.section))
     .slice(0, 10);
 }
 
@@ -94,10 +94,10 @@ async function searchContent(query: string): Promise<SearchResult[]> {
   }
 }
 
-function getRecentFilesAsPages(): PageInfo[] {
+function getRecentFilesAsNotes(): NoteInfo[] {
   return recentFiles
-    .map(path => allPages.find(p => p.path === path))
-    .filter((p): p is PageInfo => p !== undefined);
+    .map(path => allNotes.find(p => p.path === path))
+    .filter((p): p is NoteInfo => p !== undefined);
 }
 
 function escapeHtml(text: string): string {
@@ -140,16 +140,16 @@ function renderDropdown(query: string): void {
     recentSearchesSection.style.display = recentSearches.length ? 'block' : 'none';
     resultsSection.style.display = 'none';
 
-    const recentPages = getRecentFilesAsPages();
-    currentResults = recentPages;
+    const recentNotes = getRecentFilesAsNotes();
+    currentResults = recentNotes;
 
-    recentPages.forEach((page, i) => {
+    recentNotes.forEach((note, i) => {
       const li = document.createElement('li');
       li.className = i === selectedIndex ? 'selected' : '';
       li.innerHTML = `
         <div class="result-header">
-          <span class="result-section">${escapeHtml(truncateSection(page.section))}</span>
-          <span class="result-filename">${escapeHtml(page.name)}</span>
+          <span class="result-section">${escapeHtml(truncateSection(note.section))}</span>
+          <span class="result-filename">${escapeHtml(note.name)}</span>
         </div>
       `;
       li.addEventListener('click', () => selectResult(i));
@@ -176,8 +176,8 @@ function renderDropdown(query: string): void {
     resultsSection.style.display = 'block';
 
     // Separate filename matches from content matches
-    const filenameMatches: { result: SearchResult | PageInfo; index: number }[] = [];
-    const contentMatches: { result: SearchResult | PageInfo; index: number }[] = [];
+    const filenameMatches: { result: SearchResult | NoteInfo; index: number }[] = [];
+    const contentMatches: { result: SearchResult | NoteInfo; index: number }[] = [];
 
     currentResults.forEach((result, i) => {
       if ('snippet' in result && result.snippet) {
@@ -195,13 +195,13 @@ function renderDropdown(query: string): void {
       resultsList.appendChild(header);
 
       filenameMatches.forEach(({ result, index }) => {
-        const page = result as PageInfo;
+        const note = result as NoteInfo;
         const li = document.createElement('li');
         li.className = index === selectedIndex ? 'selected' : '';
         li.innerHTML = `
           <div class="result-header">
-            <span class="result-section">${escapeHtml(truncateSection(page.section))}</span>
-            <span class="result-filename">${escapeHtml(page.name)}</span>
+            <span class="result-section">${escapeHtml(truncateSection(note.section))}</span>
+            <span class="result-filename">${escapeHtml(note.name)}</span>
           </div>
         `;
         li.addEventListener('click', () => selectResult(index));
@@ -267,7 +267,7 @@ function scrollToSelected(): void {
   selected?.scrollIntoView({ block: 'nearest' });
 }
 
-export function openSearchBar(onSelect?: (result: SearchResult | PageInfo, matchLine?: number, searchTerm?: string) => void): void {
+export function openSearchBar(onSelect?: (result: SearchResult | NoteInfo, matchLine?: number, searchTerm?: string) => void): void {
   // Close git modal if open (mutual exclusivity)
   closeHistoryPanel();
 
@@ -276,7 +276,7 @@ export function openSearchBar(onSelect?: (result: SearchResult | PageInfo, match
   }
   isOpen = true;
   selectedIndex = 0;
-  currentResults = getRecentFilesAsPages();
+  currentResults = getRecentFilesAsNotes();
 
   const container = document.getElementById('search-container');
   const input = document.getElementById('search-input') as HTMLInputElement;
@@ -307,7 +307,7 @@ export function isSearchBarOpen(): boolean {
   return isOpen;
 }
 
-export function initSearchBar(onSelect?: (result: SearchResult | PageInfo, matchLine?: number, searchTerm?: string) => void): void {
+export function initSearchBar(onSelect?: (result: SearchResult | NoteInfo, matchLine?: number, searchTerm?: string) => void): void {
   if (onSelect) {
     defaultSelectCallback = onSelect;
   }

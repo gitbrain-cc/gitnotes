@@ -1,7 +1,7 @@
 mod search;
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
@@ -33,7 +33,7 @@ pub struct SectionMetadata {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Page {
+pub struct Note {
     pub name: String,
     pub path: String,
     pub filename: String,
@@ -76,6 +76,131 @@ struct Frontmatter {
     modified: Option<String>,
     #[serde(flatten)]
     other: std::collections::HashMap<String, serde_yaml::Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Vault {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct VaultStats {
+    pub vault_id: String,
+    pub section_count: u32,
+    pub note_count: u32,
+    pub last_modified: Option<String>,
+    pub is_git_repo: bool,
+    pub git_branch: Option<String>,
+    pub git_provider: Option<String>,
+    pub git_repo: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GitSettings {
+    #[serde(default = "default_commit_mode")]
+    pub commit_mode: String,
+}
+
+fn default_commit_mode() -> String {
+    "simple".to_string()
+}
+
+impl Default for GitSettings {
+    fn default() -> Self {
+        GitSettings {
+            commit_mode: default_commit_mode(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Settings {
+    pub vaults: Vec<Vault>,
+    #[serde(default)]
+    pub active_vault: Option<String>,
+    #[serde(default)]
+    pub git: GitSettings,
+}
+
+fn get_settings_path() -> PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| dirs::home_dir().unwrap_or_default())
+        .join("noteone")
+        .join("settings.json")
+}
+
+fn load_settings() -> Settings {
+    let path = get_settings_path();
+    if path.exists() {
+        if let Ok(content) = fs::read_to_string(&path) {
+            if let Ok(settings) = serde_json::from_str(&content) {
+                return settings;
+            }
+        }
+    }
+    // Default: create vault from current hardcoded path
+    let default_path = dirs::home_dir()
+        .unwrap_or_default()
+        .join("tetronomis/dotfiles/notes");
+    let settings = Settings {
+        vaults: vec![Vault {
+            id: generate_id(),
+            name: "notes".to_string(),
+            path: default_path.to_string_lossy().to_string(),
+        }],
+        active_vault: None,
+        git: GitSettings::default(),
+    };
+    // Save default settings so IDs persist across calls
+    let _ = save_settings(&settings);
+    settings
+}
+
+fn save_settings(settings: &Settings) -> Result<(), String> {
+    let path = get_settings_path();
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let content = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
+    fs::write(&path, content).map_err(|e| e.to_string())
+}
+
+fn generate_id() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    format!("{:x}", duration.as_millis())
+}
+
+/// Parse git remote URL and return (provider, repo)
+/// Handles: git@github.com:user/repo.git, https://github.com/user/repo.git
+fn parse_git_remote(url: &str) -> Option<(String, String)> {
+    let url = url.trim();
+
+    // SSH format: git@github.com:user/repo.git
+    if let Some(rest) = url.strip_prefix("git@") {
+        let parts: Vec<&str> = rest.splitn(2, ':').collect();
+        if parts.len() == 2 {
+            let provider = parts[0].to_string();
+            let repo = parts[1].trim_end_matches(".git").to_string();
+            return Some((provider, repo));
+        }
+    }
+
+    // HTTPS format: https://github.com/user/repo.git
+    if url.starts_with("https://") || url.starts_with("http://") {
+        if let Some(rest) = url.strip_prefix("https://").or_else(|| url.strip_prefix("http://")) {
+            let parts: Vec<&str> = rest.splitn(2, '/').collect();
+            if parts.len() == 2 {
+                let provider = parts[0].to_string();
+                let repo = parts[1].trim_end_matches(".git").to_string();
+                return Some((provider, repo));
+            }
+        }
+    }
+
+    None
 }
 
 fn parse_frontmatter(content: &str) -> (Option<Frontmatter>, &str) {
@@ -231,10 +356,20 @@ struct AppState {
 }
 
 fn get_notes_path() -> PathBuf {
-    // TODO: Read from config file
-    dirs::home_dir()
-        .unwrap_or_default()
-        .join("tetronomis/dotfiles/notes")
+    let settings = load_settings();
+
+    // Find active vault, or use first vault, or fall back to default
+    let vault_path = settings.active_vault
+        .and_then(|id| settings.vaults.iter().find(|v| v.id == id))
+        .or_else(|| settings.vaults.first())
+        .map(|v| v.path.clone());
+
+    match vault_path {
+        Some(p) => PathBuf::from(p),
+        None => dirs::home_dir()
+            .unwrap_or_default()
+            .join("tetronomis/dotfiles/notes")
+    }
 }
 
 fn load_order_config(dir: &PathBuf) -> OrderConfig {
@@ -319,7 +454,7 @@ fn list_sections() -> Result<Vec<Section>, String> {
 }
 
 #[tauri::command]
-fn list_pages(section_path: String) -> Result<Vec<Page>, String> {
+fn list_notes(section_path: String) -> Result<Vec<Note>, String> {
     let path = PathBuf::from(&section_path);
 
     if !path.exists() {
@@ -328,7 +463,7 @@ fn list_pages(section_path: String) -> Result<Vec<Page>, String> {
 
     let section_meta = load_section_metadata(&path);
 
-    let mut pages: Vec<Page> = fs::read_dir(&path)
+    let mut notes: Vec<Note> = fs::read_dir(&path)
         .map_err(|e| e.to_string())?
         .filter_map(|entry| {
             let entry = entry.ok()?;
@@ -360,7 +495,7 @@ fn list_pages(section_path: String) -> Result<Vec<Page>, String> {
                     (0, 0)
                 };
 
-                Some(Page {
+                Some(Note {
                     name: filename.trim_end_matches(".md").to_string(),
                     path: path.to_string_lossy().to_string(),
                     filename,
@@ -375,13 +510,13 @@ fn list_pages(section_path: String) -> Result<Vec<Page>, String> {
 
     // Sort by preference
     match section_meta.sort.as_str() {
-        "alpha-desc" | "name-desc" => pages.sort_by(|a, b| b.name.to_lowercase().cmp(&a.name.to_lowercase())),
-        "created-asc" => pages.sort_by(|a, b| a.created.cmp(&b.created)),
-        "created-desc" => pages.sort_by(|a, b| b.created.cmp(&a.created)),
-        "modified-asc" => pages.sort_by(|a, b| a.modified.cmp(&b.modified)),
-        "modified-desc" => pages.sort_by(|a, b| b.modified.cmp(&a.modified)),
+        "alpha-desc" | "name-desc" => notes.sort_by(|a, b| b.name.to_lowercase().cmp(&a.name.to_lowercase())),
+        "created-asc" => notes.sort_by(|a, b| a.created.cmp(&b.created)),
+        "created-desc" => notes.sort_by(|a, b| b.created.cmp(&a.created)),
+        "modified-asc" => notes.sort_by(|a, b| a.modified.cmp(&b.modified)),
+        "modified-desc" => notes.sort_by(|a, b| b.modified.cmp(&a.modified)),
         "manual" if !section_meta.order.is_empty() => {
-            pages.sort_by(|a, b| {
+            notes.sort_by(|a, b| {
                 let a_idx = section_meta.order.iter().position(|x| x == &a.filename);
                 let b_idx = section_meta.order.iter().position(|x| x == &b.filename);
                 match (a_idx, b_idx) {
@@ -392,12 +527,12 @@ fn list_pages(section_path: String) -> Result<Vec<Page>, String> {
                 }
             });
         }
-        _ => pages.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase())), // alpha-asc default
+        _ => notes.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase())), // alpha-asc default
     }
 
     // Move pinned to top
     if !section_meta.pinned.is_empty() {
-        pages.sort_by(|a, b| {
+        notes.sort_by(|a, b| {
             let a_pinned = section_meta.pinned.contains(&a.filename);
             let b_pinned = section_meta.pinned.contains(&b.filename);
             match (a_pinned, b_pinned) {
@@ -408,16 +543,16 @@ fn list_pages(section_path: String) -> Result<Vec<Page>, String> {
         });
     }
 
-    Ok(pages)
+    Ok(notes)
 }
 
 #[tauri::command]
-fn read_page(path: String) -> Result<String, String> {
+fn read_note(path: String) -> Result<String, String> {
     fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn write_page(path: String, content: String) -> Result<(), String> {
+fn write_note(path: String, content: String) -> Result<(), String> {
     let file_path = PathBuf::from(&path);
     let now = iso_now();
 
@@ -446,12 +581,12 @@ fn write_page(path: String, content: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn create_page(section_path: String, name: String) -> Result<Page, String> {
+fn create_note(section_path: String, name: String) -> Result<Note, String> {
     let filename = format!("{}.md", name);
     let path = PathBuf::from(&section_path).join(&filename);
 
     if path.exists() {
-        return Err("Page already exists".to_string());
+        return Err("Note already exists".to_string());
     }
 
     let now_iso = iso_now();
@@ -466,7 +601,7 @@ fn create_page(section_path: String, name: String) -> Result<Page, String> {
     let content = format!("{}\n\n# {}\n\n", format_frontmatter(&fm), name);
     fs::write(&path, content).map_err(|e| e.to_string())?;
 
-    Ok(Page {
+    Ok(Note {
         name,
         path: path.to_string_lossy().to_string(),
         filename,
@@ -481,7 +616,7 @@ fn get_week_name() -> String {
 }
 
 #[tauri::command]
-fn create_page_smart(section_path: String) -> Result<Page, String> {
+fn create_note_smart(section_path: String) -> Result<Note, String> {
     let path = PathBuf::from(&section_path);
     let section_name = path.file_name()
         .ok_or("Invalid path")?
@@ -522,7 +657,7 @@ fn create_page_smart(section_path: String) -> Result<Page, String> {
     let content = format!("{}\n\n# {}\n\n", format_frontmatter(&fm), name);
     fs::write(&file_path, content).map_err(|e| e.to_string())?;
 
-    Ok(Page {
+    Ok(Note {
         name,
         path: file_path.to_string_lossy().to_string(),
         filename,
@@ -532,22 +667,22 @@ fn create_page_smart(section_path: String) -> Result<Page, String> {
 }
 
 #[tauri::command]
-fn delete_page(path: String) -> Result<(), String> {
+fn delete_note(path: String) -> Result<(), String> {
     let file_path = PathBuf::from(&path);
 
     if !file_path.exists() {
-        return Err("Page not found".to_string());
+        return Err("Note not found".to_string());
     }
 
     trash::delete(&file_path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn rename_page(old_path: String, new_name: String) -> Result<Page, String> {
+fn rename_note(old_path: String, new_name: String) -> Result<Note, String> {
     let old_file = PathBuf::from(&old_path);
 
     if !old_file.exists() {
-        return Err("Page not found".to_string());
+        return Err("Note not found".to_string());
     }
 
     // Validate name - no filesystem-invalid chars
@@ -561,7 +696,7 @@ fn rename_page(old_path: String, new_name: String) -> Result<Page, String> {
     let new_path = parent.join(&new_filename);
 
     if new_path.exists() {
-        return Err("A page with that name already exists".to_string());
+        return Err("A note with that name already exists".to_string());
     }
 
     // Get timestamps before rename
@@ -580,7 +715,7 @@ fn rename_page(old_path: String, new_name: String) -> Result<Page, String> {
         .map(|d| d.as_secs())
         .unwrap_or(0);
 
-    Ok(Page {
+    Ok(Note {
         name: new_name,
         path: new_path.to_string_lossy().to_string(),
         filename: new_filename,
@@ -590,11 +725,11 @@ fn rename_page(old_path: String, new_name: String) -> Result<Page, String> {
 }
 
 #[tauri::command]
-fn move_page(path: String, new_section_path: String) -> Result<Page, String> {
+fn move_note(path: String, new_section_path: String) -> Result<Note, String> {
     let old_file = PathBuf::from(&path);
 
     if !old_file.exists() {
-        return Err("Page not found".to_string());
+        return Err("Note not found".to_string());
     }
 
     let filename = old_file.file_name()
@@ -605,7 +740,7 @@ fn move_page(path: String, new_section_path: String) -> Result<Page, String> {
     let new_path = PathBuf::from(&new_section_path).join(&filename);
 
     if new_path.exists() {
-        return Err("A page with that name already exists in the target section".to_string());
+        return Err("A note with that name already exists in the target section".to_string());
     }
 
     // Get timestamps before move
@@ -624,7 +759,7 @@ fn move_page(path: String, new_section_path: String) -> Result<Page, String> {
         .map(|d| d.as_secs())
         .unwrap_or(0);
 
-    Ok(Page {
+    Ok(Note {
         name: filename.trim_end_matches(".md").to_string(),
         path: new_path.to_string_lossy().to_string(),
         filename,
@@ -641,7 +776,7 @@ pub struct SearchResult {
 }
 
 #[tauri::command]
-fn list_all_pages() -> Result<Vec<SearchResult>, String> {
+fn list_all_notes() -> Result<Vec<SearchResult>, String> {
     let notes_path = get_notes_path();
 
     if !notes_path.exists() {
@@ -663,15 +798,15 @@ fn list_all_pages() -> Result<Vec<SearchResult>, String> {
             continue;
         }
 
-        if let Ok(pages) = fs::read_dir(&section_path) {
-            for page_entry in pages.filter_map(|e| e.ok()) {
-                let page_path = page_entry.path();
-                let filename = page_entry.file_name().to_string_lossy().to_string();
+        if let Ok(notes) = fs::read_dir(&section_path) {
+            for note_entry in notes.filter_map(|e| e.ok()) {
+                let note_path = note_entry.path();
+                let filename = note_entry.file_name().to_string_lossy().to_string();
 
-                if page_path.is_file() && filename.ends_with(".md") && !filename.starts_with('.') {
+                if note_path.is_file() && filename.ends_with(".md") && !filename.starts_with('.') {
                     results.push(SearchResult {
                         name: filename.trim_end_matches(".md").to_string(),
-                        path: page_path.to_string_lossy().to_string(),
+                        path: note_path.to_string_lossy().to_string(),
                         section: section_name.clone(),
                     });
                 }
@@ -1132,6 +1267,208 @@ pub struct RepoStats {
     pub branch_count: u32,
 }
 
+// Settings commands
+#[tauri::command]
+fn get_settings() -> Settings {
+    load_settings()
+}
+
+#[tauri::command]
+fn update_settings(settings: Settings) -> Result<(), String> {
+    save_settings(&settings)
+}
+
+#[tauri::command]
+fn get_vault_stats(vault_id: String) -> Result<VaultStats, String> {
+    let settings = load_settings();
+    let vault = settings.vaults.iter()
+        .find(|v| v.id == vault_id)
+        .ok_or_else(|| "Vault not found".to_string())?;
+
+    let vault_path = Path::new(&vault.path);
+
+    // Count sections (directories) and notes (.md files)
+    let mut section_count = 0u32;
+    let mut note_count = 0u32;
+    let mut latest_modified: Option<std::time::SystemTime> = None;
+
+    if vault_path.exists() {
+        for entry in walkdir::WalkDir::new(vault_path)
+            .min_depth(1)
+            .into_iter()
+            .filter_entry(|e| !e.file_name().to_string_lossy().starts_with('.'))
+            .filter_map(|e| e.ok())
+        {
+            let path = entry.path();
+            if path.is_dir() {
+                section_count += 1;
+            } else if path.extension().map_or(false, |ext| ext == "md") {
+                note_count += 1;
+                if let Ok(metadata) = path.metadata() {
+                    if let Ok(modified) = metadata.modified() {
+                        if latest_modified.map_or(true, |latest| modified > latest) {
+                            latest_modified = Some(modified);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Format last modified as relative time
+    let last_modified = latest_modified.map(|time| {
+        let now = std::time::SystemTime::now();
+        let duration = now.duration_since(time).unwrap_or_default();
+        let secs = duration.as_secs();
+
+        if secs < 60 {
+            "just now".to_string()
+        } else if secs < 3600 {
+            let mins = secs / 60;
+            format!("{} min{} ago", mins, if mins == 1 { "" } else { "s" })
+        } else if secs < 86400 {
+            let hours = secs / 3600;
+            format!("{} hour{} ago", hours, if hours == 1 { "" } else { "s" })
+        } else if secs < 604800 {
+            let days = secs / 86400;
+            format!("{} day{} ago", days, if days == 1 { "" } else { "s" })
+        } else {
+            let weeks = secs / 604800;
+            format!("{} week{} ago", weeks, if weeks == 1 { "" } else { "s" })
+        }
+    });
+
+    // Check git status - walk up to find .git directory
+    let git_path = {
+        let mut current: Option<&Path> = Some(&vault_path);
+        loop {
+            match current {
+                Some(dir) => {
+                    let candidate = dir.join(".git");
+                    if candidate.exists() {
+                        break Some(candidate);
+                    }
+                    current = dir.parent();
+                }
+                None => break None,
+            }
+        }
+    };
+    let is_git_repo = git_path.is_some();
+
+    let (git_branch, git_provider, git_repo) = if let Some(git_path) = git_path {
+        // Get branch
+        let head_path = git_path.join("HEAD");
+        let branch = fs::read_to_string(&head_path).ok().and_then(|content| {
+            content.strip_prefix("ref: refs/heads/")
+                .map(|s| s.trim().to_string())
+        });
+
+        // Get remote URL from config
+        let config_path = git_path.join("config");
+        let (provider, repo) = fs::read_to_string(&config_path).ok()
+            .and_then(|content| {
+                // Find [remote "origin"] section and extract url
+                let mut in_origin = false;
+                for line in content.lines() {
+                    if line.trim() == "[remote \"origin\"]" {
+                        in_origin = true;
+                    } else if line.trim().starts_with('[') {
+                        in_origin = false;
+                    } else if in_origin && line.trim().starts_with("url = ") {
+                        let url = line.trim().strip_prefix("url = ")?;
+                        return parse_git_remote(url);
+                    }
+                }
+                None
+            })
+            .map(|(p, r)| (Some(p), Some(r)))
+            .unwrap_or((None, None));
+
+        (branch, provider, repo)
+    } else {
+        (None, None, None)
+    };
+
+    Ok(VaultStats {
+        vault_id,
+        section_count,
+        note_count,
+        last_modified,
+        is_git_repo,
+        git_branch,
+        git_provider,
+        git_repo,
+    })
+}
+
+#[tauri::command]
+async fn add_vault(app: tauri::AppHandle) -> Result<Option<Vault>, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let folder = app.dialog().file().blocking_pick_folder();
+
+    match folder {
+        Some(path) => {
+            let path_str = path.to_string();
+            let name = std::path::Path::new(&path_str)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("notes")
+                .to_string();
+
+            let vault = Vault {
+                id: generate_id(),
+                name,
+                path: path_str,
+            };
+
+            let mut settings = load_settings();
+            settings.vaults.push(vault.clone());
+            save_settings(&settings)?;
+
+            Ok(Some(vault))
+        }
+        None => Ok(None)
+    }
+}
+
+#[tauri::command]
+fn remove_vault(vault_id: String) -> Result<(), String> {
+    let mut settings = load_settings();
+    settings.vaults.retain(|v| v.id != vault_id);
+
+    // If we removed the active vault, clear active_vault
+    if settings.active_vault.as_ref() == Some(&vault_id) {
+        settings.active_vault = settings.vaults.first().map(|v| v.id.clone());
+    }
+
+    save_settings(&settings)
+}
+
+#[tauri::command]
+fn set_active_vault(vault_id: String) -> Result<(), String> {
+    let mut settings = load_settings();
+    if settings.vaults.iter().any(|v| v.id == vault_id) {
+        settings.active_vault = Some(vault_id);
+        save_settings(&settings)
+    } else {
+        Err("Vault not found".to_string())
+    }
+}
+
+#[tauri::command]
+fn set_git_mode(mode: String) -> Result<(), String> {
+    let mut settings = load_settings();
+    settings.git.commit_mode = mode;
+    save_settings(&settings)
+}
+
+#[tauri::command]
+fn get_git_mode() -> String {
+    load_settings().git.commit_mode
+}
+
 #[tauri::command]
 fn get_repo_stats() -> Result<RepoStats, String> {
     let notes_path = get_notes_path();
@@ -1238,18 +1575,59 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+            use tauri::Emitter;
+
+            let settings_item = MenuItemBuilder::new("Settings...")
+                .id("settings")
+                .accelerator("CmdOrCtrl+,")
+                .build(app)?;
+
+            let app_submenu = SubmenuBuilder::new(app, "Git Notes")
+                .item(&settings_item)
+                .separator()
+                .quit()
+                .build()?;
+
+            let edit_submenu = SubmenuBuilder::new(app, "Edit")
+                .undo()
+                .redo()
+                .separator()
+                .cut()
+                .copy()
+                .paste()
+                .select_all()
+                .build()?;
+
+            let menu = MenuBuilder::new(app)
+                .item(&app_submenu)
+                .item(&edit_submenu)
+                .build()?;
+
+            app.set_menu(menu)?;
+
+            // Handle menu events
+            app.on_menu_event(move |app, event| {
+                if event.id() == "settings" {
+                    let _ = app.emit("open-settings", ());
+                }
+            });
+
+            Ok(())
+        })
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             list_sections,
-            list_pages,
-            read_page,
-            write_page,
-            create_page,
-            create_page_smart,
-            delete_page,
-            rename_page,
-            move_page,
-            list_all_pages,
+            list_notes,
+            read_note,
+            write_note,
+            create_note,
+            create_note_smart,
+            delete_note,
+            rename_note,
+            move_note,
+            list_all_notes,
             create_section,
             rename_section,
             delete_section,
@@ -1263,6 +1641,14 @@ pub fn run() {
             get_sort_preference,
             set_sort_preference,
             set_section_metadata,
+            get_settings,
+            update_settings,
+            get_vault_stats,
+            add_vault,
+            remove_vault,
+            set_active_vault,
+            set_git_mode,
+            get_git_mode,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

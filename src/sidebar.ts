@@ -1,7 +1,7 @@
 import {
-  loadSections, loadPages, setCurrentPage, setStatus,
-  createPageSmart, deletePage, renamePage, createSection, deleteSection, movePage,
-  loadPageWithHeader, setSectionMetadata
+  loadSections, loadNotes, setCurrentNote, setStatus,
+  createNoteSmart, deleteNote, renameNote, createSection, deleteSection, moveNote,
+  loadNoteWithHeader, setSectionMetadata
 } from './main';
 import { loadContent, updateHeaderData } from './editor';
 import { showContextMenu } from './contextmenu';
@@ -15,7 +15,7 @@ interface Section {
   color?: string;
 }
 
-interface Page {
+interface Note {
   name: string;
   path: string;
   filename: string;
@@ -24,16 +24,16 @@ interface Page {
 let sections: Section[] = [];
 let currentSection: Section | null = null;
 
-async function handleDeletePage(page: Page) {
+async function handleDeleteNote(note: Note) {
   try {
-    await deletePage(page.path);
+    await deleteNote(note.path);
     if (currentSection) {
-      const pages = await loadPages(currentSection.path);
-      renderPages(pages);
-      if (pages.length > 0) {
-        await selectPage(pages[0]);
+      const notes = await loadNotes(currentSection.path);
+      renderNotes(notes);
+      if (notes.length > 0) {
+        await selectNote(notes[0]);
       } else {
-        setCurrentPage(null);
+        setCurrentNote(null);
         loadContent('');
         updateHeaderData({ title: '', createdDate: null, modifiedInfo: null });
       }
@@ -43,10 +43,10 @@ async function handleDeletePage(page: Page) {
   }
 }
 
-function startRename(page: Page, li: HTMLElement) {
+function startRename(note: Note, li: HTMLElement) {
   const input = document.createElement('input');
   input.type = 'text';
-  input.value = page.name;
+  input.value = note.name;
   input.className = 'inline-rename';
 
   li.textContent = '';
@@ -56,16 +56,16 @@ function startRename(page: Page, li: HTMLElement) {
 
   const finishRename = async () => {
     const newName = input.value.trim();
-    if (newName && newName !== page.name) {
+    if (newName && newName !== note.name) {
       try {
-        await renamePage(page.path, newName);
+        await renameNote(note.path, newName);
       } catch (err) {
         console.error('Rename error:', err);
       }
     }
     if (currentSection) {
-      const pages = await loadPages(currentSection.path);
-      renderPages(pages);
+      const notes = await loadNotes(currentSection.path);
+      renderNotes(notes);
     }
   };
 
@@ -74,7 +74,7 @@ function startRename(page: Page, li: HTMLElement) {
     if (e.key === 'Enter') {
       input.blur();
     } else if (e.key === 'Escape') {
-      input.value = page.name;
+      input.value = note.name;
       input.blur();
     }
   });
@@ -128,15 +128,15 @@ function startSectionRename(section: Section, li: HTMLElement) {
   });
 }
 
-async function refreshCurrentPages() {
+async function refreshCurrentNotes() {
   if (!currentSection) return;
-  const pages = await loadPages(currentSection.path);
-  renderPages(pages);
+  const notes = await loadNotes(currentSection.path);
+  renderNotes(notes);
 }
 
 export async function initSidebar() {
   // Initialize sort menu with refresh callback
-  initSortMenu(refreshCurrentPages);
+  initSortMenu(refreshCurrentNotes);
 
   sections = await loadSections();
   renderSections();
@@ -148,18 +148,18 @@ export async function initSidebar() {
   document.getElementById('add-page-btn')?.addEventListener('click', async () => {
     if (!currentSection) return;
     try {
-      const page = await createPageSmart(currentSection.path);
-      const pages = await loadPages(currentSection.path);
-      renderPages(pages);
-      await selectPage(page);
+      const note = await createNoteSmart(currentSection.path);
+      const notes = await loadNotes(currentSection.path);
+      renderNotes(notes);
+      await selectNote(note);
 
       // Auto-trigger rename if Untitled
-      if (page.name === 'Untitled' || page.name.startsWith('Untitled ')) {
-        const li = document.querySelector(`[data-path="${page.path}"]`) as HTMLElement;
-        if (li) startRename(page, li);
+      if (note.name === 'Untitled' || note.name.startsWith('Untitled ')) {
+        const li = document.querySelector(`[data-path="${note.path}"]`) as HTMLElement;
+        if (li) startRename(note, li);
       }
     } catch (err) {
-      console.error('Create page error:', err);
+      console.error('Create note error:', err);
     }
   });
 
@@ -206,17 +206,17 @@ function renderSections() {
     li.addEventListener('drop', async (e) => {
       e.preventDefault();
       li.classList.remove('drop-target');
-      const pagePath = e.dataTransfer?.getData('text/plain');
-      if (pagePath && section.path !== currentSection?.path) {
+      const notePath = e.dataTransfer?.getData('text/plain');
+      if (notePath && section.path !== currentSection?.path) {
         try {
-          await movePage(pagePath, section.path);
+          await moveNote(notePath, section.path);
           if (currentSection) {
-            const pages = await loadPages(currentSection.path);
-            renderPages(pages);
-            if (pages.length > 0) {
-              await selectPage(pages[0]);
+            const notes = await loadNotes(currentSection.path);
+            renderNotes(notes);
+            if (notes.length > 0) {
+              await selectNote(notes[0]);
             } else {
-              setCurrentPage(null);
+              setCurrentNote(null);
               loadContent('');
               updateHeaderData({ title: '', createdDate: null, modifiedInfo: null });
             }
@@ -259,63 +259,63 @@ async function selectSection(section: Section) {
   // Update sort menu for this section
   await updateSortForSection(section.path);
 
-  const pages = await loadPages(section.path);
-  renderPages(pages);
+  const notes = await loadNotes(section.path);
+  renderNotes(notes);
 
-  // Select first page if any
-  if (pages.length > 0) {
-    await selectPage(pages[0]);
+  // Select first note if any
+  if (notes.length > 0) {
+    await selectNote(notes[0]);
   } else {
-    setCurrentPage(null);
+    setCurrentNote(null);
     loadContent('');
     updateHeaderData({ title: '', createdDate: null, modifiedInfo: null });
-    setStatus('No pages in section');
+    setStatus('No notes in section');
   }
 }
 
-function renderPages(pages: Page[]) {
+function renderNotes(notes: Note[]) {
   const list = document.getElementById('pages-list');
   if (!list) return;
 
   list.innerHTML = '';
 
-  for (const page of pages) {
+  for (const note of notes) {
     const li = document.createElement('li');
-    li.textContent = page.name;
-    li.dataset.path = page.path;
+    li.textContent = note.name;
+    li.dataset.path = note.path;
     li.draggable = true;
     li.addEventListener('dragstart', (e) => {
-      e.dataTransfer?.setData('text/plain', page.path);
+      e.dataTransfer?.setData('text/plain', note.path);
       li.classList.add('dragging');
     });
     li.addEventListener('dragend', () => {
       li.classList.remove('dragging');
     });
-    li.addEventListener('click', () => selectPage(page));
+    li.addEventListener('click', () => selectNote(note));
     li.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       showContextMenu(e.clientX, e.clientY, [
-        { label: 'Rename', action: () => startRename(page, li) },
-        { label: 'Delete', action: () => handleDeletePage(page) }
+        { label: 'Rename', action: () => startRename(note, li) },
+        { label: 'Delete', action: () => handleDeleteNote(note) }
       ]);
     });
     list.appendChild(li);
   }
 }
 
-export async function selectPage(page: Page, matchLine?: number, searchTerm?: string) {
+export async function selectNote(note: Note, matchLine?: number, searchTerm?: string) {
   // Update UI
-  const pagesList = document.getElementById('pages-list');
-  if (pagesList) {
-    pagesList.querySelectorAll('li').forEach(li => {
-      li.classList.toggle('active', li.dataset.path === page.path);
+  const notesList = document.getElementById('pages-list');
+  if (notesList) {
+    notesList.querySelectorAll('li').forEach(li => {
+      li.classList.toggle('active', li.dataset.path === note.path);
     });
   }
 
   setStatus('Loading...');
 
   try {
-    await loadPageWithHeader(page);
+    await loadNoteWithHeader(note);
 
     // Scroll to match line if provided
     if (matchLine !== undefined) {
@@ -325,16 +325,16 @@ export async function selectPage(page: Page, matchLine?: number, searchTerm?: st
 
     setStatus('Ready');
 
-    // Auto-trigger rename for Untitled pages
-    if (page.name === 'Untitled' || page.name.startsWith('Untitled ')) {
-      const li = document.querySelector(`[data-path="${page.path}"]`) as HTMLElement;
+    // Auto-trigger rename for Untitled notes
+    if (note.name === 'Untitled' || note.name.startsWith('Untitled ')) {
+      const li = document.querySelector(`[data-path="${note.path}"]`) as HTMLElement;
       if (li && !li.querySelector('input')) {
-        startRename(page, li);
+        startRename(note, li);
       }
     }
   } catch (err) {
-    console.error('Error loading page:', err);
-    setStatus('Error loading page');
+    console.error('Error loading note:', err);
+    setStatus('Error loading note');
   }
 }
 
@@ -348,17 +348,17 @@ export async function navigateToPath(path: string, sectionName: string, matchLin
   if (section && (!currentSection || currentSection.path !== section.path)) {
     currentSection = section;
     renderSections();
-    const pages = await loadPages(section.path);
-    renderPages(pages);
+    const notes = await loadNotes(section.path);
+    renderNotes(notes);
   }
 
-  // Create a Page object and select it
+  // Create a Note object and select it
   const filename = path.split('/').pop() || '';
-  const page: Page = {
+  const note: Note = {
     name: filename.replace('.md', ''),
     path: path,
     filename: filename
   };
 
-  await selectPage(page, matchLine, searchTerm);
+  await selectNote(note, matchLine, searchTerm);
 }

@@ -1,16 +1,17 @@
 import { invoke } from '@tauri-apps/api/core';
 import { initSidebar, navigateToPath } from './sidebar';
 import { initEditor, getContent, focusEditor, getWordCount, updateHeaderData, loadContent } from './editor';
-import { initSearchBar, openSearchBar, loadAllPages, closeSearchBar, isSearchBarOpen, addRecentFile } from './search-bar';
+import { initSearchBar, openSearchBar, loadAllNotes, closeSearchBar, isSearchBarOpen, addRecentFile } from './search-bar';
 import { parseFrontMatter, serializeFrontMatter, FrontMatter } from './frontmatter';
 import { initGitStatus, refreshGitStatus, closeHistoryPanel, isHistoryPanelOpen } from './git-status';
+import { initSettings, getGitMode, isSettingsOpen, closeSettings } from './settings';
 
 interface Section {
   name: string;
   path: string;
 }
 
-interface Page {
+interface Note {
   name: string;
   path: string;
   filename: string;
@@ -28,7 +29,7 @@ interface GitInfo {
   is_git_repo: boolean;
 }
 
-let currentPage: Page | null = null;
+let currentNote: Note | null = null;
 let currentFrontMatter: FrontMatter = {};
 let currentBody: string = '';
 let saveTimeout: number | null = null;
@@ -37,16 +38,16 @@ export async function loadSections(): Promise<Section[]> {
   return await invoke('list_sections');
 }
 
-export async function loadPages(sectionPath: string): Promise<Page[]> {
-  return await invoke('list_pages', { sectionPath });
+export async function loadNotes(sectionPath: string): Promise<Note[]> {
+  return await invoke('list_notes', { sectionPath });
 }
 
-export async function readPage(path: string): Promise<string> {
-  return await invoke('read_page', { path });
+export async function readNote(path: string): Promise<string> {
+  return await invoke('read_note', { path });
 }
 
-export async function writePage(path: string, content: string): Promise<void> {
-  return await invoke('write_page', { path, content });
+export async function writeNote(path: string, content: string): Promise<void> {
+  return await invoke('write_note', { path, content });
 }
 
 export async function getFileMetadata(path: string): Promise<FileMetadata> {
@@ -61,20 +62,20 @@ export async function gitCommit(path: string, message: string): Promise<void> {
   return await invoke('git_commit', { path, message });
 }
 
-export async function createPageSmart(sectionPath: string): Promise<Page> {
-  return await invoke('create_page_smart', { sectionPath });
+export async function createNoteSmart(sectionPath: string): Promise<Note> {
+  return await invoke('create_note_smart', { sectionPath });
 }
 
-export async function deletePage(path: string): Promise<void> {
-  return await invoke('delete_page', { path });
+export async function deleteNote(path: string): Promise<void> {
+  return await invoke('delete_note', { path });
 }
 
-export async function renamePage(oldPath: string, newName: string): Promise<Page> {
-  return await invoke('rename_page', { oldPath, newName });
+export async function renameNote(oldPath: string, newName: string): Promise<Note> {
+  return await invoke('rename_note', { oldPath, newName });
 }
 
-export async function movePage(path: string, newSectionPath: string): Promise<Page> {
-  return await invoke('move_page', { path, newSectionPath });
+export async function moveNote(path: string, newSectionPath: string): Promise<Note> {
+  return await invoke('move_note', { path, newSectionPath });
 }
 
 export async function createSection(name: string): Promise<Section> {
@@ -97,12 +98,12 @@ export async function setSectionMetadata(sectionPath: string, title: string | nu
   });
 }
 
-export function setCurrentPage(page: Page | null) {
-  currentPage = page;
+export function setCurrentNote(note: Note | null) {
+  currentNote = note;
 }
 
-export function getCurrentPage(): Page | null {
-  return currentPage;
+export function getCurrentNote(): Note | null {
+  return currentNote;
 }
 
 export function setStatus(text: string) {
@@ -164,12 +165,12 @@ function buildModifiedInfo(gitInfo: GitInfo): string | null {
   return null;
 }
 
-// Load page and update header
-export async function loadPageWithHeader(page: Page) {
-  currentPage = page;
+// Load note and update header
+export async function loadNoteWithHeader(note: Note) {
+  currentNote = note;
 
   // Read raw content
-  const rawContent = await readPage(page.path);
+  const rawContent = await readNote(note.path);
 
   // Parse front matter
   const parsed = parseFrontMatter(rawContent);
@@ -178,7 +179,7 @@ export async function loadPageWithHeader(page: Page) {
 
   // Check if we need to migrate (no created date in front matter)
   if (!currentFrontMatter.created) {
-    const metadata = await getFileMetadata(page.path);
+    const metadata = await getFileMetadata(note.path);
     if (metadata.created) {
       currentFrontMatter.created = metadata.created;
     } else {
@@ -188,10 +189,10 @@ export async function loadPageWithHeader(page: Page) {
   }
 
   // Get git info
-  const gitInfo = await getGitInfo(page.path);
+  const gitInfo = await getGitInfo(note.path);
 
   // Build header data
-  const title = page.name; // filename without .md
+  const title = note.name; // filename without .md
   const createdDate = currentFrontMatter.created
     ? formatRelativeTime(currentFrontMatter.created)
     : null;
@@ -207,21 +208,21 @@ export async function loadPageWithHeader(page: Page) {
   updateWordCount();
 
   // Track as recent file
-  addRecentFile(page.path);
+  addRecentFile(note.path);
 }
 
 // Refresh just the header (after save/commit)
 async function refreshHeader() {
-  if (!currentPage) return;
+  if (!currentNote) return;
 
-  const gitInfo = await getGitInfo(currentPage.path);
+  const gitInfo = await getGitInfo(currentNote.path);
   const createdDate = currentFrontMatter.created
     ? formatRelativeTime(currentFrontMatter.created)
     : null;
   const modifiedInfo = buildModifiedInfo(gitInfo);
 
   updateHeaderData({
-    title: currentPage.name,
+    title: currentNote.name,
     createdDate,
     modifiedInfo,
   });
@@ -236,7 +237,7 @@ export function scheduleSave() {
   updateWordCount();
 
   saveTimeout = window.setTimeout(async () => {
-    if (currentPage) {
+    if (currentNote) {
       try {
         const fullContent = getContent();
 
@@ -247,17 +248,23 @@ export function scheduleSave() {
         // Rebuild with current front matter
         const contentToSave = serializeFrontMatter(currentFrontMatter, currentBody);
 
-        await writePage(currentPage.path, contentToSave);
+        await writeNote(currentNote.path, contentToSave);
         setStatus('Saved');
 
-        // Auto-commit
-        try {
-          const filename = currentPage.filename.replace('.md', '');
-          await gitCommit(currentPage.path, `Update ${filename}`);
-          setStatus('Committed');
-        } catch {
-          // Git commit failed - that's ok, file is still saved
-          setStatus('Saved (not committed)');
+        // Auto-commit only if git mode is 'simple'
+        const gitMode = await getGitMode();
+        if (gitMode === 'simple') {
+          try {
+            const filename = currentNote.filename.replace('.md', '');
+            await gitCommit(currentNote.path, `Update ${filename}`);
+            setStatus('Committed');
+          } catch {
+            // Git commit failed - that's ok, file is still saved
+            setStatus('Saved (not committed)');
+          }
+        } else {
+          // Manual mode - just mark as saved
+          setStatus('Saved');
         }
 
         // Refresh header to show new git status
@@ -300,9 +307,11 @@ function setupKeyboardShortcuts() {
       firstItem?.focus();
     }
 
-    // Esc: Close search or history panel
+    // Esc: Close settings, search, or history panel
     if (e.key === 'Escape') {
-      if (isSearchBarOpen()) {
+      if (isSettingsOpen()) {
+        closeSettings();
+      } else if (isSearchBarOpen()) {
         closeSearchBar();
       } else if (isHistoryPanelOpen()) {
         closeHistoryPanel();
@@ -316,9 +325,10 @@ async function init() {
     initEditor();
     initSearchBar(handleSearchSelect);
     initGitStatus();
+    initSettings();
     setupKeyboardShortcuts();
     await initSidebar();
-    await loadAllPages();
+    await loadAllNotes();
     setStatus('Ready');
   } catch (err) {
     console.error('Init error:', err);
