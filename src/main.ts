@@ -104,6 +104,10 @@ export async function setSectionMetadata(sectionPath: string, title: string | nu
   });
 }
 
+export async function saveSectionOrder(order: string[]): Promise<void> {
+  await invoke('save_section_order', { order });
+}
+
 export function setCurrentNote(note: Note | null) {
   currentNote = note;
 }

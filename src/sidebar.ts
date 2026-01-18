@@ -1,7 +1,7 @@
 import {
   loadSections, loadNotes, setCurrentNote, setStatus,
   createNoteSmart, deleteNote, renameNote, createSection, deleteSection, moveNote,
-  loadNoteWithHeader, setSectionMetadata, trySmartCommit
+  loadNoteWithHeader, setSectionMetadata, trySmartCommit, saveSectionOrder
 } from './main';
 import { loadContent, updateHeaderData } from './editor';
 import { showContextMenu } from './contextmenu';
@@ -23,6 +23,15 @@ interface Note {
 
 let sections: Section[] = [];
 let currentSection: Section | null = null;
+
+// Section drag state
+let dragState: {
+  active: boolean;
+  sectionIndex: number;
+  startY: number;
+  holdTimer: number | null;
+} | null = null;
+let skipNextSectionClick = false;
 
 async function handleDeleteNote(note: Note) {
   try {
@@ -174,6 +183,104 @@ export async function initSidebar() {
   });
 }
 
+function getDropIndex(clientY: number): number {
+  const list = document.getElementById('sections-list');
+  if (!list) return 0;
+
+  const items = Array.from(list.querySelectorAll('li:not(.drop-indicator)'));
+
+  for (let i = 0; i < items.length; i++) {
+    const rect = items[i].getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+    if (clientY < midpoint) {
+      return i;
+    }
+  }
+  return items.length;
+}
+
+function showDropIndicator(index: number) {
+  removeDropIndicator();
+  const list = document.getElementById('sections-list');
+  if (!list) return;
+
+  const indicator = document.createElement('div');
+  indicator.className = 'drop-indicator';
+
+  const items = list.querySelectorAll('li:not(.drop-indicator)');
+  if (index >= items.length) {
+    list.appendChild(indicator);
+  } else {
+    list.insertBefore(indicator, items[index]);
+  }
+}
+
+function removeDropIndicator() {
+  document.querySelector('#sections-list .drop-indicator')?.remove();
+}
+
+function handleSectionDragMove(e: MouseEvent) {
+  if (!dragState?.active) return;
+
+  const list = document.getElementById('sections-list');
+  if (!list) return;
+
+  const rect = list.getBoundingClientRect();
+
+  // Hide indicator if outside sidebar horizontally
+  if (e.clientX < rect.left || e.clientX > rect.right) {
+    removeDropIndicator();
+    return;
+  }
+
+  const dropIndex = getDropIndex(e.clientY);
+  showDropIndicator(dropIndex);
+}
+
+async function handleSectionDragEnd(e: MouseEvent) {
+  document.removeEventListener('mousemove', handleSectionDragMove);
+  document.removeEventListener('mouseup', handleSectionDragEnd);
+
+  const list = document.getElementById('sections-list');
+  if (!list || !dragState?.active) {
+    removeDropIndicator();
+    dragState = null;
+    return;
+  }
+
+  const fromIndex = dragState.sectionIndex;
+  const toIndex = getDropIndex(e.clientY);
+
+  removeDropIndicator();
+
+  // Remove dragging class from all items
+  list.querySelectorAll('li.dragging').forEach(el => el.classList.remove('dragging'));
+
+  dragState = null;
+  skipNextSectionClick = true;
+
+  // Skip if dropped in same position
+  if (toIndex === fromIndex || toIndex === fromIndex + 1) {
+    return;
+  }
+
+  // Reorder sections array
+  const [moved] = sections.splice(fromIndex, 1);
+  const insertAt = toIndex > fromIndex ? toIndex - 1 : toIndex;
+  sections.splice(insertAt, 0, moved);
+
+  // Save new order
+  const order = sections.map(s => s.name);
+  try {
+    await saveSectionOrder(order);
+  } catch (err) {
+    console.error('Save section order error:', err);
+  }
+
+  // Re-render
+  renderSections();
+}
+
 function renderSections() {
   const list = document.getElementById('sections-list');
   if (!list) return;
@@ -195,6 +302,52 @@ function renderSections() {
     }
 
     const isProtected = ['1-todo', '1-weeks'].includes(section.name.toLowerCase());
+
+    const sectionIndex = sections.indexOf(section);
+
+    // Hold-to-drag for section reordering (only if multiple sections)
+    if (sections.length > 1) {
+      li.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return; // Left click only
+        e.preventDefault(); // Prevent text selection
+
+        const startY = e.clientY;
+        const currentLi = li;
+
+        const holdTimer = window.setTimeout(() => {
+          // Enter drag mode
+          currentLi.classList.add('dragging');
+          dragState = { active: true, sectionIndex, startY, holdTimer: null };
+          document.addEventListener('mousemove', handleSectionDragMove);
+          document.addEventListener('mouseup', handleSectionDragEnd);
+        }, 200);
+
+        dragState = { active: false, sectionIndex, startY, holdTimer };
+        currentLi.classList.add('drag-pending');
+
+        const cancelHold = () => {
+          if (dragState?.holdTimer) {
+            clearTimeout(dragState.holdTimer);
+          }
+          currentLi.classList.remove('drag-pending');
+          if (!dragState?.active) {
+            dragState = null;
+          }
+          document.removeEventListener('mouseup', cancelHold);
+          document.removeEventListener('mousemove', checkMovement);
+        };
+
+        const checkMovement = (moveEvent: MouseEvent) => {
+          // Cancel if moved > 5px before hold timer fires
+          if (Math.abs(moveEvent.clientY - startY) > 5 && !dragState?.active) {
+            cancelHold();
+          }
+        };
+
+        document.addEventListener('mouseup', cancelHold);
+        document.addEventListener('mousemove', checkMovement);
+      });
+    }
 
     li.addEventListener('dragover', (e) => {
       e.preventDefault();
@@ -226,7 +379,13 @@ function renderSections() {
         }
       }
     });
-    li.addEventListener('click', () => selectSection(section));
+    li.addEventListener('click', () => {
+      if (skipNextSectionClick) {
+        skipNextSectionClick = false;
+        return;
+      }
+      selectSection(section);
+    });
     li.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       showContextMenu(e.clientX, e.clientY, [

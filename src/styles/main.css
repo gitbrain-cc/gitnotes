@@ -511,6 +511,20 @@ body {
   color: white;
 }
 
+/* Section drag reordering */
+#sections-list li.drag-pending {
+  transform: scale(1.02);
+  transition: transform 100ms ease;
+}
+
+#sections-list .drop-indicator {
+  height: 2px;
+  background: var(--accent-color);
+  margin: 0 8px;
+  border-radius: 1px;
+  pointer-events: none;
+}
+
 /* Inline Rename */
 .inline-rename {
   width: 100%;

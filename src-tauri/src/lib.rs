@@ -69,6 +69,12 @@ impl Default for OrderConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
+pub struct GitNotesConfig {
+    #[serde(default, rename = "sectionOrder")]
+    pub section_order: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
 struct Frontmatter {
     #[serde(default)]
     created: Option<String>,
@@ -435,6 +441,31 @@ fn load_order_config(dir: &PathBuf) -> OrderConfig {
     OrderConfig::default()
 }
 
+fn load_gitnotes_config(vault_path: &PathBuf) -> GitNotesConfig {
+    let config_file = vault_path.join(".gitnotes");
+    if config_file.exists() {
+        if let Ok(content) = fs::read_to_string(&config_file) {
+            if let Ok(config) = serde_json::from_str(&content) {
+                return config;
+            }
+        }
+    }
+    GitNotesConfig::default()
+}
+
+#[tauri::command]
+fn save_section_order(order: Vec<String>) -> Result<(), String> {
+    let vault_path = get_notes_path();
+    let config_file = vault_path.join(".gitnotes");
+
+    // Load existing config to preserve other fields
+    let mut config = load_gitnotes_config(&vault_path);
+    config.section_order = order;
+
+    let content = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+    fs::write(&config_file, content).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn get_sort_preference(section_path: String) -> Result<String, String> {
     let path = PathBuf::from(&section_path);
@@ -458,7 +489,7 @@ fn list_sections() -> Result<Vec<Section>, String> {
         return Err(format!("Notes directory not found: {:?}", notes_path));
     }
 
-    let order_config = load_order_config(&notes_path);
+    let gitnotes_config = load_gitnotes_config(&notes_path);
 
     let mut sections: Vec<Section> = fs::read_dir(&notes_path)
         .map_err(|e| e.to_string())?
@@ -479,11 +510,11 @@ fn list_sections() -> Result<Vec<Section>, String> {
         })
         .collect();
 
-    // Sort by order config or alphabetically
-    if !order_config.sections.is_empty() {
+    // Sort by .gitnotes sectionOrder or alphabetically
+    if !gitnotes_config.section_order.is_empty() {
         sections.sort_by(|a, b| {
-            let a_idx = order_config.sections.iter().position(|x| x == &a.name);
-            let b_idx = order_config.sections.iter().position(|x| x == &b.name);
+            let a_idx = gitnotes_config.section_order.iter().position(|x| x == &a.name);
+            let b_idx = gitnotes_config.section_order.iter().position(|x| x == &b.name);
             match (a_idx, b_idx) {
                 (Some(ai), Some(bi)) => ai.cmp(&bi),
                 (Some(_), None) => std::cmp::Ordering::Less,
@@ -2059,6 +2090,7 @@ pub fn run() {
             get_sort_preference,
             set_sort_preference,
             set_section_metadata,
+            save_section_order,
             get_settings,
             update_settings,
             get_vault_stats,
