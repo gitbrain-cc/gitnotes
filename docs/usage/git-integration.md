@@ -32,51 +32,64 @@ The **dirty indicator** (orange dot) appears when any files have uncommitted cha
 
 Both staged and unstaged changes count toward dirty state.
 
-## Repository Modal
+## Git View
 
-Shows detailed git information:
+Click the git status box to enter **Git View** - a full-screen mode for reviewing changes.
 
 ```
-┌─────────────────────────────────────┐
-│  [dotfiles ●]  [other-repo]  [+]    │
-├─────────────────────────────────────┤
-│  96 commits · 4d old · on master    │
-├─────────────────────────────────────┤
-│  +1 -1   Update 2020-42      9m ago │
-│  +1 -1   Update --Summary-- 15m ago │
-│  +5      Update 2020-45     16m ago │
-│  ...                                │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│ UNCOMMITTED (4)           │  notes/1-weeks/Today.md        │
+│ M  notes/1-weeks/Today.md │                                │
+│ A  notes/ideas/new.md     │  +Added this line              │
+│                           │  -Removed this line            │
+│ HISTORY                   │   Context line                 │
+│ +6 -2  Update Today  1h   │                                │
+│ +1 -1  Fix typo      2h   │  another-file.md               │
+│ +21k   Initial import 3d  │                                │
+│                           │  +New content here             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Info Line
+### Sidebar
 
-- **Commit count** - Total commits in the repository
-- **Age** - Time since first commit (e.g., "4d old", "2y 3mo")
-- **Branch** - Current branch name
+**UNCOMMITTED** section shows files with changes:
+- **M** (yellow) - Modified
+- **A** (green) - Added/new file
+- **D** (red) - Deleted
 
-### Commit History
+Full paths shown (e.g., `notes/1-weeks/Today.md`) to distinguish files with same name.
 
-Each row shows:
+**HISTORY** section shows recent commits:
+- **+N/-N** - Lines added/removed (uses `k` suffix for thousands: `+21k`)
+- **Message** - Commit summary
+- **Time** - Relative timestamp
 
-| Column | Description |
-|--------|-------------|
-| **+N** (green) | Lines added |
-| **-N** (red) | Lines removed |
-| **Message** | Commit message (truncated) |
-| **Time** | Relative timestamp |
+### Diff Viewer
 
-Large numbers are abbreviated: `+1k` for 1000+ lines.
+Select any file or commit to see its diff:
+- **Green lines** - Additions
+- **Red lines** - Deletions
+- **Faded lines** - Context (unchanged)
+
+For commits with multiple files, each file gets a header separator.
+
+### Navigation
+
+| Key | Action |
+|-----|--------|
+| **↑/↓** | Navigate files/commits |
+| **Escape** | Exit git view |
+| **Click** | Select file or commit |
 
 ## Multiple Repositories
 
-NoteOne can track multiple git repositories:
+Configure repositories in Settings (Cmd+,):
 
-- **Active repo** - Shown in the status box, listed first in modal
-- **Other repos** - Click to switch (becomes active)
-- **+ button** - Add a new repository (coming soon)
+- **Active repo** - Shown in status box, used for git view
+- **Switch** - Click a different repo to make it active
+- **Add** - Add local folder or clone from SSH URL
 
-Switching repos updates the status box and refreshes history.
+Switching repos updates the status box and reloads the sidebar.
 
 ## Per-File Status
 

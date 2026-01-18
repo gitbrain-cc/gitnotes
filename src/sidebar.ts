@@ -1,7 +1,7 @@
 import {
   loadSections, loadNotes, setCurrentNote, setStatus,
   createNoteSmart, deleteNote, renameNote, createSection, deleteSection, moveNote,
-  loadNoteWithHeader, setSectionMetadata
+  loadNoteWithHeader, setSectionMetadata, trySmartCommit
 } from './main';
 import { loadContent, updateHeaderData } from './editor';
 import { showContextMenu } from './contextmenu';
@@ -253,6 +253,7 @@ function renderSections() {
 }
 
 async function selectSection(section: Section) {
+  await trySmartCommit();
   currentSection = section;
   renderSections();
 
@@ -304,6 +305,7 @@ function renderNotes(notes: Note[]) {
 }
 
 export async function selectNote(note: Note, matchLine?: number, searchTerm?: string) {
+  await trySmartCommit();
   // Update UI
   const notesList = document.getElementById('pages-list');
   if (notesList) {

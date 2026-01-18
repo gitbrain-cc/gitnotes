@@ -20,6 +20,7 @@ interface VaultStats {
 
 interface GitSettings {
   commit_mode: string;
+  commit_interval: number;
 }
 
 interface Settings {
@@ -55,6 +56,14 @@ export async function getGitMode(): Promise<string> {
 
 export async function setGitMode(mode: string): Promise<void> {
   return await invoke('set_git_mode', { mode });
+}
+
+export async function getCommitInterval(): Promise<number> {
+  return await invoke('get_commit_interval');
+}
+
+export async function setCommitInterval(interval: number): Promise<void> {
+  return await invoke('set_commit_interval', { interval });
 }
 
 async function addLocalVault(): Promise<{ vault: Vault | null; error: string | null }> {
@@ -297,6 +306,17 @@ async function loadSettingsData() {
       opt.classList.toggle('active', mode === currentSettings!.git.commit_mode);
     });
   }
+
+  // Update interval input
+  const intervalInput = document.getElementById('commit-interval-input') as HTMLInputElement;
+  const intervalSetting = document.getElementById('commit-interval-setting');
+  if (intervalInput && currentSettings) {
+    intervalInput.value = String(currentSettings.git.commit_interval || 30);
+  }
+  // Show/hide interval setting based on mode
+  if (intervalSetting) {
+    intervalSetting.classList.toggle('hidden', currentSettings?.git.commit_mode !== 'smart');
+  }
 }
 
 export function initSettings() {
@@ -481,7 +501,21 @@ export function initSettings() {
         await setGitMode(mode);
         gitModeOptions.forEach(o => o.classList.remove('active'));
         opt.classList.add('active');
+        // Show/hide interval setting
+        const intervalSetting = document.getElementById('commit-interval-setting');
+        if (intervalSetting) {
+          intervalSetting.classList.toggle('hidden', mode !== 'smart');
+        }
       }
     });
+  });
+
+  // Commit interval change
+  const intervalInput = document.getElementById('commit-interval-input') as HTMLInputElement;
+  intervalInput?.addEventListener('change', async () => {
+    const interval = parseInt(intervalInput.value, 10);
+    if (interval >= 1 && interval <= 120) {
+      await setCommitInterval(interval);
+    }
   });
 }

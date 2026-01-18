@@ -25,34 +25,6 @@
           <div class="git-last-commit"></div>
         </div>
       </div>
-      <!-- Modal: floats over content, has its own copy of the box -->
-      <div id="git-modal">
-        <div id="git-repos-row">
-          <div id="git-modal-box" class="git-repo-box active">
-            <svg class="git-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="18" cy="18" r="3"></circle>
-              <circle cx="6" cy="6" r="3"></circle>
-              <path d="M13 6h3a2 2 0 0 1 2 2v7"></path>
-              <line x1="6" y1="9" x2="6" y2="21"></line>
-            </svg>
-            <div class="git-status-info">
-              <div class="git-status-content">
-                <span class="git-repo-name">Loading...</span>
-                <span class="git-dirty-indicator"></span>
-              </div>
-              <div class="git-last-commit"></div>
-            </div>
-          </div>
-          <button id="git-add-repo" class="git-repo-box placeholder" title="Add repository">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-          </button>
-        </div>
-        <div id="git-repo-info"></div>
-        <ul id="git-history-list"></ul>
-      </div>
     </div>
     <div id="search-container">
       <input type="text" id="search-input" placeholder="Search files and content..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other">
@@ -73,46 +45,70 @@
   </div>
 
   <div id="app">
-    <div id="sidebar-area">
-      <div id="sidebars">
-        <aside id="sections" class="sidebar">
-          <div class="sidebar-header">Sections</div>
-          <ul id="sections-list"></ul>
-          <div class="sidebar-footer">
-            <button id="add-section-btn" class="sidebar-add-btn">+ Add section</button>
-          </div>
-        </aside>
-        <aside id="pages" class="sidebar">
-          <div class="sidebar-header">
-            <span>Notes</span>
-            <div id="sort-container">
-              <button id="sort-btn" title="Sort notes">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="4" y1="6" x2="16" y2="6"></line>
-                  <line x1="4" y1="12" x2="12" y2="12"></line>
-                  <line x1="4" y1="18" x2="8" y2="18"></line>
-                  <polyline points="15 15 18 18 21 15"></polyline>
-                  <line x1="18" y1="12" x2="18" y2="18"></line>
-                </svg>
-              </button>
-              <div id="sort-menu">
-                <div class="sort-option" data-sort="alpha">Alphabetical <span class="sort-arrow"></span></div>
-                <div class="sort-option" data-sort="created">Date Created <span class="sort-arrow"></span></div>
-                <div class="sort-option" data-sort="modified">Date Modified <span class="sort-arrow"></span></div>
+    <!-- Notes Mode -->
+    <div id="notes-mode">
+      <div id="sidebar-area">
+        <div id="sidebars">
+          <aside id="sections" class="sidebar">
+            <div class="sidebar-header">Sections</div>
+            <ul id="sections-list"></ul>
+            <div class="sidebar-footer">
+              <button id="add-section-btn" class="sidebar-add-btn">+ Add section</button>
+            </div>
+          </aside>
+          <aside id="pages" class="sidebar">
+            <div class="sidebar-header">
+              <span>Notes</span>
+              <div id="sort-container">
+                <button id="sort-btn" title="Sort notes">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="4" y1="6" x2="16" y2="6"></line>
+                    <line x1="4" y1="12" x2="12" y2="12"></line>
+                    <line x1="4" y1="18" x2="8" y2="18"></line>
+                    <polyline points="15 15 18 18 21 15"></polyline>
+                    <line x1="18" y1="12" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+                <div id="sort-menu">
+                  <div class="sort-option" data-sort="alpha">Alphabetical <span class="sort-arrow"></span></div>
+                  <div class="sort-option" data-sort="created">Date Created <span class="sort-arrow"></span></div>
+                  <div class="sort-option" data-sort="modified">Date Modified <span class="sort-arrow"></span></div>
+                </div>
               </div>
             </div>
-          </div>
-          <ul id="pages-list"></ul>
-          <div class="sidebar-footer">
-            <button id="add-page-btn" class="sidebar-add-btn">+ Add note</button>
-          </div>
-        </aside>
+            <ul id="pages-list"></ul>
+            <div class="sidebar-footer">
+              <button id="add-page-btn" class="sidebar-add-btn">+ Add note</button>
+            </div>
+          </aside>
+        </div>
       </div>
+      <main id="editor-container">
+        <div id="note-header"></div>
+        <div id="editor"></div>
+      </main>
     </div>
-    <main id="editor-container">
-      <div id="note-header"></div>
-      <div id="editor"></div>
-    </main>
+
+    <!-- Git Mode -->
+    <div id="git-view" class="hidden">
+      <div id="git-sidebar">
+        <div id="git-uncommitted-section" class="hidden">
+          <div class="git-section-header">
+            <span>Uncommitted</span>
+            <span id="git-uncommitted-count"></span>
+          </div>
+          <ul id="git-uncommitted-list"></ul>
+        </div>
+        <div id="git-history-section">
+          <div class="git-section-header">History</div>
+          <ul id="git-commits-list"></ul>
+        </div>
+      </div>
+      <main id="git-diff-container">
+        <div id="git-diff-header"></div>
+        <div id="git-diff-content"></div>
+      </main>
+    </div>
   </div>
   <footer id="status-bar">
     <span id="status-text">Ready</span>
@@ -141,7 +137,14 @@
           <div id="panel-git" class="settings-panel">
             <label class="settings-label">Commit mode</label>
             <div id="git-mode-options">
-              <div class="git-mode-option active" data-mode="simple">
+              <div class="git-mode-option active" data-mode="smart">
+                <div class="git-mode-radio"></div>
+                <div class="git-mode-info">
+                  <div class="git-mode-name">Smart</div>
+                  <div class="git-mode-desc">Commit after interval or on file switch</div>
+                </div>
+              </div>
+              <div class="git-mode-option" data-mode="simple">
                 <div class="git-mode-radio"></div>
                 <div class="git-mode-info">
                   <div class="git-mode-name">Simple</div>
@@ -155,6 +158,14 @@
                   <div class="git-mode-desc">Save only, commit via git status box</div>
                 </div>
               </div>
+            </div>
+            <div id="commit-interval-setting">
+              <label class="settings-label">Commit interval</label>
+              <div class="interval-row">
+                <input type="number" id="commit-interval-input" min="1" max="120" value="30">
+                <span class="interval-unit">minutes</span>
+              </div>
+              <p class="settings-hint">Commits after this much inactivity or when switching files</p>
             </div>
           </div>
         </div>

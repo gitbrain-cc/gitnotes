@@ -101,16 +101,23 @@ pub struct VaultStats {
 pub struct GitSettings {
     #[serde(default = "default_commit_mode")]
     pub commit_mode: String,
+    #[serde(default = "default_commit_interval")]
+    pub commit_interval: u32,
 }
 
 fn default_commit_mode() -> String {
-    "simple".to_string()
+    "smart".to_string()
+}
+
+fn default_commit_interval() -> u32 {
+    30
 }
 
 impl Default for GitSettings {
     fn default() -> Self {
         GitSettings {
             commit_mode: default_commit_mode(),
+            commit_interval: default_commit_interval(),
         }
     }
 }
@@ -376,7 +383,6 @@ fn iso_to_timestamp(iso: &str) -> u64 {
 
 struct AppState {
     search_index: Arc<SearchIndex>,
-    notes_path: PathBuf,
 }
 
 fn get_notes_path() -> PathBuf {
@@ -406,12 +412,6 @@ fn load_order_config(dir: &PathBuf) -> OrderConfig {
         }
     }
     OrderConfig::default()
-}
-
-fn save_order_config(dir: &PathBuf, config: &OrderConfig) -> Result<(), String> {
-    let order_file = dir.join(".order.json");
-    let content = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
-    fs::write(&order_file, content).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1160,6 +1160,80 @@ fn get_repo_status() -> Result<RepoStatus, String> {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct DirtyFile {
+    pub path: String,
+    pub filename: String,
+    pub status: String, // M, A, D, R, etc.
+}
+
+#[tauri::command]
+fn get_dirty_files() -> Result<Vec<DirtyFile>, String> {
+    let notes_path = get_notes_path();
+
+    let output = Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(&notes_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Ok(vec![]);
+    }
+
+    let files: Vec<DirtyFile> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| {
+            if line.len() < 4 {
+                return None;
+            }
+            let status = line[0..2].trim().to_string();
+            let path = line[3..].to_string();
+            // Handle paths ending with / (directories) - trim and get last non-empty segment
+            let trimmed_path = path.trim_end_matches('/');
+            let filename = trimmed_path.split('/').last().unwrap_or(trimmed_path).to_string();
+            Some(DirtyFile { path, filename, status })
+        })
+        .collect();
+
+    Ok(files)
+}
+
+#[tauri::command]
+fn get_file_diff(path: String) -> Result<String, String> {
+    let notes_path = get_notes_path();
+
+    // Try staged diff first, then unstaged
+    let output = Command::new("git")
+        .args(["diff", "HEAD", "--", &path])
+        .current_dir(&notes_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        Ok(String::new())
+    }
+}
+
+#[tauri::command]
+fn get_commit_diff(hash: String) -> Result<String, String> {
+    let notes_path = get_notes_path();
+
+    let output = Command::new("git")
+        .args(["show", "--format=", &hash])
+        .current_dir(&notes_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        Err("Failed to get commit diff".to_string())
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GitLogEntry {
     pub hash: String,
     pub message: String,
@@ -1531,6 +1605,18 @@ fn get_git_mode() -> String {
 }
 
 #[tauri::command]
+fn get_commit_interval() -> u32 {
+    load_settings().git.commit_interval
+}
+
+#[tauri::command]
+fn set_commit_interval(interval: u32) -> Result<(), String> {
+    let mut settings = load_settings();
+    settings.git.commit_interval = interval;
+    save_settings(&settings)
+}
+
+#[tauri::command]
 fn get_repo_stats() -> Result<RepoStats, String> {
     let notes_path = get_notes_path();
 
@@ -1724,7 +1810,6 @@ pub fn run() {
 
     let app_state = AppState {
         search_index,
-        notes_path,
     };
 
     tauri::Builder::default()
@@ -1791,6 +1876,9 @@ pub fn run() {
             git_commit,
             search_notes,
             get_repo_status,
+            get_dirty_files,
+            get_file_diff,
+            get_commit_diff,
             get_git_log,
             get_repo_stats,
             get_sort_preference,
@@ -1805,6 +1893,8 @@ pub fn run() {
             add_existing_vault,
             set_git_mode,
             get_git_mode,
+            get_commit_interval,
+            set_commit_interval,
             check_clone_path,
             clone_vault,
             get_default_clone_path,

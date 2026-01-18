@@ -3,8 +3,9 @@ import { initSidebar, navigateToPath } from './sidebar';
 import { initEditor, getContent, focusEditor, getWordCount, updateHeaderData, loadContent } from './editor';
 import { initSearchBar, openSearchBar, loadAllNotes, closeSearchBar, isSearchBarOpen, addRecentFile } from './search-bar';
 import { parseFrontMatter, serializeFrontMatter, FrontMatter } from './frontmatter';
-import { initGitStatus, refreshGitStatus, closeHistoryPanel, isHistoryPanelOpen } from './git-status';
-import { initSettings, getGitMode, isSettingsOpen, closeSettings } from './settings';
+import { initGitStatus, refreshGitStatus } from './git-status';
+import { initSettings, getGitMode, getCommitInterval, isSettingsOpen, closeSettings } from './settings';
+import { initGitView, isGitModeOpen, exitGitMode } from './git-view';
 
 interface Section {
   name: string;
@@ -33,6 +34,11 @@ let currentNote: Note | null = null;
 let currentFrontMatter: FrontMatter = {};
 let currentBody: string = '';
 let saveTimeout: number | null = null;
+
+// Smart commit state
+let lastCommitTime: number = Date.now();
+let hasUncommittedChanges: boolean = false;
+let inactivityTimer: number | null = null;
 
 export async function loadSections(): Promise<Section[]> {
   return await invoke('list_sections');
@@ -228,6 +234,50 @@ async function refreshHeader() {
   });
 }
 
+export async function trySmartCommit(): Promise<void> {
+  if (!hasUncommittedChanges) return;
+
+  const gitMode = await getGitMode();
+  if (gitMode !== 'smart') return;
+
+  const interval = await getCommitInterval();
+  const intervalMs = interval * 60 * 1000;
+  const timeSinceLastCommit = Date.now() - lastCommitTime;
+
+  if (timeSinceLastCommit < intervalMs) return;
+
+  // Get current note for commit message
+  const note = getCurrentNote();
+  if (!note) return;
+
+  try {
+    const filename = note.filename.replace('.md', '');
+    await gitCommit(note.path, `Update ${filename}`);
+    lastCommitTime = Date.now();
+    hasUncommittedChanges = false;
+    setStatus('Committed');
+    await refreshGitStatus();
+  } catch {
+    // Commit failed - that's ok
+  }
+}
+
+export async function resetInactivityTimer(): Promise<void> {
+  if (inactivityTimer !== null) {
+    clearTimeout(inactivityTimer);
+  }
+
+  const gitMode = await getGitMode();
+  if (gitMode !== 'smart') return;
+
+  const interval = await getCommitInterval();
+  const intervalMs = interval * 60 * 1000;
+
+  inactivityTimer = window.setTimeout(() => {
+    trySmartCommit();
+  }, intervalMs);
+}
+
 export function scheduleSave() {
   if (saveTimeout) {
     clearTimeout(saveTimeout);
@@ -251,23 +301,25 @@ export function scheduleSave() {
         await writeNote(currentNote.path, contentToSave);
         setStatus('Saved');
 
-        // Auto-commit only if git mode is 'simple'
         const gitMode = await getGitMode();
+
         if (gitMode === 'simple') {
+          // Simple mode: commit immediately
           try {
             const filename = currentNote.filename.replace('.md', '');
             await gitCommit(currentNote.path, `Update ${filename}`);
+            lastCommitTime = Date.now();
             setStatus('Committed');
           } catch {
-            // Git commit failed - that's ok, file is still saved
             setStatus('Saved (not committed)');
           }
-        } else {
-          // Manual mode - just mark as saved
-          setStatus('Saved');
+        } else if (gitMode === 'smart') {
+          // Smart mode: mark as uncommitted, reset timer
+          hasUncommittedChanges = true;
+          await resetInactivityTimer();
         }
+        // Manual mode: just saved, no commit action
 
-        // Refresh header to show new git status
         await refreshHeader();
         await refreshGitStatus();
       } catch (err) {
@@ -307,14 +359,14 @@ function setupKeyboardShortcuts() {
       firstItem?.focus();
     }
 
-    // Esc: Close settings, search, or history panel
+    // Esc: Close settings, git view, or search
     if (e.key === 'Escape') {
       if (isSettingsOpen()) {
         closeSettings();
+      } else if (isGitModeOpen()) {
+        exitGitMode();
       } else if (isSearchBarOpen()) {
         closeSearchBar();
-      } else if (isHistoryPanelOpen()) {
-        closeHistoryPanel();
       }
     }
   });
@@ -325,11 +377,27 @@ async function init() {
     initEditor();
     initSearchBar(handleSearchSelect);
     initGitStatus();
+    initGitView();
     initSettings();
     setupKeyboardShortcuts();
     await initSidebar();
     await loadAllNotes();
     setStatus('Ready');
+
+    // Smart commit on blur/close
+    window.addEventListener('blur', () => {
+      trySmartCommit();
+    });
+
+    window.addEventListener('beforeunload', () => {
+      trySmartCommit();
+    });
+
+    // Reset inactivity timer on editor changes
+    const editorEl = document.getElementById('editor-container');
+    editorEl?.addEventListener('keydown', () => {
+      resetInactivityTimer();
+    });
   } catch (err) {
     console.error('Init error:', err);
     setStatus('Error loading');

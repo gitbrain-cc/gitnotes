@@ -21,7 +21,7 @@ pub struct SearchIndex {
     index: Index,
     reader: IndexReader,
     writer: Mutex<IndexWriter>,
-    schema: Schema,
+    _schema: Schema,
     // Field handles
     path_field: Field,
     filename_field: Field,
@@ -58,7 +58,7 @@ impl SearchIndex {
             index,
             reader,
             writer: Mutex::new(writer),
-            schema,
+            _schema: schema,
             path_field,
             filename_field,
             section_field,
@@ -118,7 +118,7 @@ impl SearchIndex {
         &self,
         writer: &mut IndexWriter,
         path: &PathBuf,
-        notes_root: &PathBuf,
+        _notes_root: &PathBuf,
     ) -> Result<(), String> {
         let content = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
 

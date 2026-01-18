@@ -8,7 +8,14 @@
 | **Cmd+Shift+F** | Open search (alias) |
 | **Cmd+1** | Focus editor |
 | **Cmd+2** | Focus sidebar sections |
-| **Escape** | Close search / git modal |
+| **Escape** | Close search / git view |
+
+## Git View
+
+| Shortcut | Action |
+|----------|--------|
+| **Arrow Down/Up** | Navigate uncommitted files and commits |
+| **Escape** | Exit git view |
 
 ## Search
 

@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { closeHistoryPanel } from './git-status';
+import { exitGitMode } from './git-view';
 
 interface SearchResult {
   path: string;
@@ -268,8 +268,8 @@ function scrollToSelected(): void {
 }
 
 export function openSearchBar(onSelect?: (result: SearchResult | NoteInfo, matchLine?: number, searchTerm?: string) => void): void {
-  // Close git modal if open (mutual exclusivity)
-  closeHistoryPanel();
+  // Close git view if open (mutual exclusivity)
+  exitGitMode();
 
   if (onSelect) {
     onSelectCallback = onSelect;
