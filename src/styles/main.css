@@ -4,6 +4,7 @@
   box-sizing: border-box;
 }
 
+/* Base light theme (used by System mode in light OS) */
 :root {
   --bg-primary: #ffffff;
   --bg-secondary: #f5f5f5;
@@ -16,16 +17,72 @@
   --sidebar-width-pages: 200px;
 }
 
+/* System mode dark (when OS is dark and no data-theme set) */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg-primary: #1f1a14;
-    --bg-secondary: #2a231a;
-    --bg-tertiary: #362d21;
-    --text-primary: #e8dfd4;
-    --text-secondary: #9a8b78;
-    --border-color: #362d21;
-    --accent-color: #e8a849;
+  :root:not([data-theme]) {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #242424;
+    --bg-tertiary: #2e2e2e;
+    --text-primary: #e0e0e0;
+    --text-secondary: #888888;
+    --border-color: #333333;
+    --accent-color: #4a9eff;
   }
+}
+
+/* Original - warm dark (current theme) */
+html[data-theme="original"] {
+  --bg-primary: #1f1a14;
+  --bg-secondary: #2a231a;
+  --bg-tertiary: #362d21;
+  --text-primary: #e8dfd4;
+  --text-secondary: #9a8b78;
+  --border-color: #362d21;
+  --accent-color: #e8a849;
+}
+
+/* Yellow-pad - warm light, legal pad aesthetic */
+html[data-theme="yellow-pad"] {
+  --bg-primary: #fff9c4;
+  --bg-secondary: #fff59d;
+  --bg-tertiary: #ffee58;
+  --text-primary: #3d3929;
+  --text-secondary: #5d5540;
+  --border-color: #e6d98a;
+  --accent-color: #c49102;
+}
+
+/* Classic-light - clean light theme */
+html[data-theme="classic-light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary: #e8e8e8;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --border-color: #dddddd;
+  --accent-color: #e07020;
+}
+
+/* Classic-dark - standard dark theme */
+html[data-theme="classic-dark"] {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #242424;
+  --bg-tertiary: #2e2e2e;
+  --text-primary: #e0e0e0;
+  --text-secondary: #888888;
+  --border-color: #333333;
+  --accent-color: #f08030;
+}
+
+/* True-dark - OLED black */
+html[data-theme="true-dark"] {
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-tertiary: #141414;
+  --text-primary: #e0e0e0;
+  --text-secondary: #777777;
+  --border-color: #222222;
+  --accent-color: #f08030;
 }
 
 html, body {
@@ -1025,6 +1082,69 @@ body {
 }
 
 .git-mode-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Theme options - matches git-mode-option exactly */
+#theme-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  gap: 12px;
+}
+
+.theme-option:hover {
+  background: var(--bg-tertiary, var(--bg-secondary));
+}
+
+.theme-option.active {
+  border: 1px solid var(--accent-color);
+}
+
+.theme-radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.theme-option.active .theme-radio {
+  border-color: var(--accent-color);
+}
+
+.theme-option.active .theme-radio::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--accent-color);
+  border-radius: 50%;
+}
+
+.theme-info {
+  flex: 1;
+}
+
+.theme-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.theme-desc {
   font-size: 11px;
   color: var(--text-secondary);
 }

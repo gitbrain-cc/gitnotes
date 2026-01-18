@@ -51,11 +51,11 @@ const theme = EditorView.theme({
     fontStyle: 'italic',
   },
   '.cm-link': {
-    color: '#0066cc',
+    color: 'var(--accent-color)',
     textDecoration: 'underline',
   },
   '.cm-url': {
-    color: '#666',
+    color: 'var(--text-secondary)',
   },
   '.cm-cursor': {
     borderLeftColor: 'var(--text-primary)',
