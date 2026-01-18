@@ -583,21 +583,31 @@ fn write_note(path: String, content: String) -> Result<(), String> {
     // Parse frontmatter from incoming content
     let (existing_fm, body) = parse_frontmatter(&content);
 
-    // Get existing frontmatter from file if incoming doesn't have one
-    let old_fm = if existing_fm.is_none() && file_path.exists() {
-        fs::read_to_string(&file_path)
-            .ok()
-            .and_then(|old_content| parse_frontmatter(&old_content).0)
+    // Read existing file to check for changes and get old frontmatter
+    let old_content = if file_path.exists() {
+        fs::read_to_string(&file_path).ok()
     } else {
         None
     };
 
-    // Merge frontmatter: prefer existing, update modified
+    let (old_fm, old_body) = old_content
+        .as_ref()
+        .map(|c| parse_frontmatter(c))
+        .map(|(fm, b)| (fm, b.to_string()))
+        .unwrap_or((None, String::new()));
+
+    // Check if body content actually changed
+    let content_changed = old_body.trim() != body.trim();
+
+    // Merge frontmatter: prefer existing from content, fall back to file
     let mut fm = existing_fm.or(old_fm).unwrap_or_default();
     if fm.created.is_none() {
         fm.created = Some(now.clone());
     }
-    fm.modified = Some(now);
+    // Only update modified if content actually changed
+    if content_changed {
+        fm.modified = Some(now);
+    }
 
     // Write with updated frontmatter
     let final_content = format!("{}\n\n{}", format_frontmatter(&fm), body);
@@ -1082,6 +1092,54 @@ fn git_commit(path: String, message: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn git_commit_and_push(message: String) -> Result<(), String> {
+    let notes_path = get_notes_path();
+
+    // Stage all changes
+    let add_result = Command::new("git")
+        .args(["add", "-A"])
+        .current_dir(&notes_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !add_result.status.success() {
+        return Err(String::from_utf8_lossy(&add_result.stderr).to_string());
+    }
+
+    // Commit
+    let commit_result = Command::new("git")
+        .args(["commit", "-m", &message])
+        .current_dir(&notes_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !commit_result.status.success() {
+        let stderr = String::from_utf8_lossy(&commit_result.stderr);
+        if !stderr.contains("nothing to commit") {
+            return Err(stderr.to_string());
+        }
+        // Nothing to commit - still try to push in case there are unpushed commits
+    }
+
+    // Push
+    let push_result = Command::new("git")
+        .args(["push"])
+        .current_dir(&notes_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !push_result.status.success() {
+        let stderr = String::from_utf8_lossy(&push_result.stderr);
+        // "Everything up-to-date" goes to stderr but isn't an error
+        if !stderr.contains("Everything up-to-date") && !stderr.is_empty() {
+            return Err(stderr.to_string());
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 fn get_repo_status() -> Result<RepoStatus, String> {
     let notes_path = get_notes_path();
 
@@ -1164,23 +1222,48 @@ pub struct DirtyFile {
     pub path: String,
     pub filename: String,
     pub status: String, // M, A, D, R, etc.
+    pub insertions: u32,
+    pub deletions: u32,
 }
 
 #[tauri::command]
 fn get_dirty_files() -> Result<Vec<DirtyFile>, String> {
     let notes_path = get_notes_path();
 
-    let output = Command::new("git")
+    // Get file statuses
+    let status_output = Command::new("git")
         .args(["status", "--porcelain"])
         .current_dir(&notes_path)
         .output()
         .map_err(|e| e.to_string())?;
 
-    if !output.status.success() {
+    if !status_output.status.success() {
         return Ok(vec![]);
     }
 
-    let files: Vec<DirtyFile> = String::from_utf8_lossy(&output.stdout)
+    // Get diff stats for tracked files
+    let numstat_output = Command::new("git")
+        .args(["diff", "--numstat", "HEAD"])
+        .current_dir(&notes_path)
+        .output()
+        .ok();
+
+    // Build a map of path -> (insertions, deletions)
+    let mut stats_map: std::collections::HashMap<String, (u32, u32)> = std::collections::HashMap::new();
+    if let Some(output) = numstat_output {
+        if output.status.success() {
+            for line in String::from_utf8_lossy(&output.stdout).lines() {
+                let parts: Vec<&str> = line.split('\t').collect();
+                if parts.len() >= 3 {
+                    let ins = parts[0].parse().unwrap_or(0);
+                    let del = parts[1].parse().unwrap_or(0);
+                    stats_map.insert(parts[2].to_string(), (ins, del));
+                }
+            }
+        }
+    }
+
+    let files: Vec<DirtyFile> = String::from_utf8_lossy(&status_output.stdout)
         .lines()
         .filter_map(|line| {
             if line.len() < 4 {
@@ -1191,7 +1274,8 @@ fn get_dirty_files() -> Result<Vec<DirtyFile>, String> {
             // Handle paths ending with / (directories) - trim and get last non-empty segment
             let trimmed_path = path.trim_end_matches('/');
             let filename = trimmed_path.split('/').last().unwrap_or(trimmed_path).to_string();
-            Some(DirtyFile { path, filename, status })
+            let (insertions, deletions) = stats_map.get(trimmed_path).copied().unwrap_or((0, 0));
+            Some(DirtyFile { path, filename, status, insertions, deletions })
         })
         .collect();
 
@@ -1235,12 +1319,32 @@ fn get_file_diff(path: String, vault_path: Option<String>) -> Result<String, Str
 
     // For untracked files, show content as addition
     let file_path = notes_path.join(&path);
-    if file_path.exists() && file_path.is_file() {
-        if let Ok(content) = std::fs::read_to_string(&file_path) {
-            let lines: Vec<String> = content.lines().map(|l| format!("+{}", l)).collect();
+    if file_path.exists() {
+        if file_path.is_file() {
+            if let Ok(content) = std::fs::read_to_string(&file_path) {
+                let lines: Vec<String> = content.lines().map(|l| format!("+{}", l)).collect();
+                return Ok(format!(
+                    "diff --git a/{path} b/{path}\nnew file\n--- /dev/null\n+++ b/{path}\n@@\n{}",
+                    lines.join("\n")
+                ));
+            }
+        } else if file_path.is_dir() {
+            // For new directories, list contents
+            let mut files: Vec<String> = Vec::new();
+            if let Ok(entries) = std::fs::read_dir(&file_path) {
+                for entry in entries.flatten() {
+                    if let Some(name) = entry.file_name().to_str() {
+                        let file_type = if entry.path().is_dir() { "folder" } else { "file" };
+                        files.push(format!("+  {} ({})", name, file_type));
+                    }
+                }
+            }
+            files.sort();
+            let dir_name = path.trim_end_matches('/');
             return Ok(format!(
-                "diff --git a/{path} b/{path}\nnew file\n--- /dev/null\n+++ b/{path}\n@@\n{}",
-                lines.join("\n")
+                "New folder: {}\n\nContents:\n{}",
+                dir_name,
+                if files.is_empty() { "+  (empty)".to_string() } else { files.join("\n") }
             ));
         }
     }
@@ -1906,6 +2010,7 @@ pub fn run() {
             get_file_metadata,
             get_git_info,
             git_commit,
+            git_commit_and_push,
             search_notes,
             get_repo_status,
             get_dirty_files,

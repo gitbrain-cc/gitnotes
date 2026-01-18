@@ -1,9 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
+import { refreshGitStatus } from './git-status';
 
 interface DirtyFile {
   path: string;
   filename: string;
   status: string;
+  insertions: number;
+  deletions: number;
 }
 
 interface GitLogEntry {
@@ -38,6 +41,10 @@ async function getCommitDiff(hash: string): Promise<string> {
 
 async function getGitLog(limit?: number): Promise<GitLogEntry[]> {
   return await invoke('get_git_log', { limit });
+}
+
+async function commitAndPush(message: string): Promise<void> {
+  return await invoke('git_commit_and_push', { message });
 }
 
 
@@ -83,6 +90,7 @@ function getStatusLabel(status: string): string {
   if (status === '??') return 'A';
   return status.trim().charAt(0) || '?';
 }
+
 
 // Render functions
 function renderDiff(diff: string, singleFile = false): void {
@@ -159,6 +167,10 @@ function renderUncommittedFiles(files: DirtyFile[]): void {
       <div class="git-file-row">
         <span class="git-file-status ${getStatusClass(file.status)}">${getStatusLabel(file.status)}</span>
         <span class="git-file-name">${escapeHtml(file.path.replace(/\/$/, ''))}</span>
+        <span class="commit-stats">
+          ${file.insertions > 0 ? `<span class="stat-add">+${formatNumber(file.insertions)}</span>` : ''}
+          ${file.deletions > 0 ? `<span class="stat-del">-${formatNumber(file.deletions)}</span>` : ''}
+        </span>
       </div>
     </li>
   `).join('');
@@ -190,7 +202,9 @@ async function selectFile(path: string): Promise<void> {
 
   const headerEl = document.getElementById('git-diff-header');
   if (headerEl) {
-    const filename = path.split('/').pop() || path;
+    // Handle directories (trailing slash) and files
+    const cleanPath = path.replace(/\/$/, '');
+    const filename = cleanPath.split('/').pop() || cleanPath;
     headerEl.textContent = filename;
   }
 
@@ -302,6 +316,55 @@ function navigateList(direction: -1 | 1): void {
   }
 }
 
+async function handleCommitAndPush(): Promise<void> {
+  const messageInput = document.getElementById('git-commit-message') as HTMLInputElement | null;
+  const commitBtn = document.getElementById('git-commit-btn') as HTMLButtonElement | null;
+
+  if (!messageInput || !commitBtn) return;
+
+  const message = messageInput.value.trim() || 'Update notes';
+
+  // Disable button during operation
+  commitBtn.disabled = true;
+  commitBtn.textContent = '...';
+
+  try {
+    await commitAndPush(message);
+
+    // Clear the input and refresh
+    messageInput.value = '';
+    await refreshGitStatus();
+
+    // Refresh the view - reload dirty files
+    const files = await getDirtyFiles();
+    if (files.length === 0) {
+      // No more changes - switch to history view
+      const commits = await getGitLog(50);
+      renderCommits(commits);
+      renderUncommittedFiles([]);
+      document.getElementById('git-history-section')?.classList.remove('hidden');
+      if (commits.length > 0) {
+        await selectCommit(commits[0].hash);
+      }
+    } else {
+      renderUncommittedFiles(files);
+      await selectFile(files[0].path);
+    }
+  } catch (err) {
+    console.error('Commit failed:', err);
+    // Show error briefly in button
+    commitBtn.textContent = 'Error!';
+    setTimeout(() => {
+      commitBtn.textContent = 'Save';
+    }, 2000);
+  } finally {
+    commitBtn.disabled = false;
+    if (commitBtn.textContent === '...') {
+      commitBtn.textContent = 'Save';
+    }
+  }
+}
+
 // Initialize
 export function initGitView(): void {
   // Click handlers for file/commit lists
@@ -318,6 +381,17 @@ export function initGitView(): void {
     if (li) {
       const hash = li.dataset.hash;
       if (hash) selectCommit(hash);
+    }
+  });
+
+  // Commit button handler
+  document.getElementById('git-commit-btn')?.addEventListener('click', handleCommitAndPush);
+
+  // Enter key in commit message input
+  document.getElementById('git-commit-message')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleCommitAndPush();
     }
   });
 

@@ -29,6 +29,7 @@ npm run tauri build # Release build
 - Vanilla TypeScript (no React/Vue)
 - Tauri IPC via `invoke()`
 - Auto-save with 500ms debounce
+- Worktree directory: `.worktrees/` (project-local)
 
 ## Terminology
 
