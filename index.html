@@ -125,6 +125,7 @@
         <nav class="settings-nav">
           <button class="settings-tab active" data-tab="repositories">Repositories</button>
           <button class="settings-tab" data-tab="git">Git</button>
+          <button class="settings-tab" data-tab="appearance">Appearance</button>
         </nav>
         <div class="settings-panels">
           <div id="panel-repositories" class="settings-panel active">
@@ -166,6 +167,53 @@
                 <span class="interval-unit">minutes</span>
               </div>
               <p class="settings-hint">Commits after this much inactivity or when switching files</p>
+            </div>
+          </div>
+          <div id="panel-appearance" class="settings-panel">
+            <label class="settings-label">Theme</label>
+            <div id="theme-options">
+              <div class="theme-option" data-theme="system">
+                <div class="theme-radio"></div>
+                <div class="theme-info">
+                  <div class="theme-name">System</div>
+                  <div class="theme-desc">Follow OS light/dark setting</div>
+                </div>
+              </div>
+              <div class="theme-option" data-theme="original">
+                <div class="theme-radio"></div>
+                <div class="theme-info">
+                  <div class="theme-name">Original</div>
+                  <div class="theme-desc">Warm dark with amber accents</div>
+                </div>
+              </div>
+              <div class="theme-option" data-theme="yellow-pad">
+                <div class="theme-radio"></div>
+                <div class="theme-info">
+                  <div class="theme-name">Yellow Pad</div>
+                  <div class="theme-desc">Warm light, legal pad aesthetic</div>
+                </div>
+              </div>
+              <div class="theme-option" data-theme="classic-light">
+                <div class="theme-radio"></div>
+                <div class="theme-info">
+                  <div class="theme-name">Classic Light</div>
+                  <div class="theme-desc">Clean light with blue accents</div>
+                </div>
+              </div>
+              <div class="theme-option" data-theme="classic-dark">
+                <div class="theme-radio"></div>
+                <div class="theme-info">
+                  <div class="theme-name">Classic Dark</div>
+                  <div class="theme-desc">Standard dark with blue accents</div>
+                </div>
+              </div>
+              <div class="theme-option" data-theme="true-dark">
+                <div class="theme-radio"></div>
+                <div class="theme-info">
+                  <div class="theme-name">True Dark</div>
+                  <div class="theme-desc">OLED black</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

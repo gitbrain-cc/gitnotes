@@ -66,6 +66,22 @@ export async function setCommitInterval(interval: number): Promise<void> {
   return await invoke('set_commit_interval', { interval });
 }
 
+export async function getTheme(): Promise<string> {
+  return await invoke('get_theme');
+}
+
+export async function setTheme(theme: string): Promise<void> {
+  return await invoke('set_theme', { theme });
+}
+
+export function applyTheme(theme: string): void {
+  if (theme === 'system') {
+    document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', theme);
+  }
+}
+
 async function addLocalVault(): Promise<{ vault: Vault | null; error: string | null }> {
   try {
     const vault = await invoke<Vault | null>('add_vault');
@@ -317,6 +333,15 @@ async function loadSettingsData() {
   if (intervalSetting) {
     intervalSetting.classList.toggle('hidden', currentSettings?.git.commit_mode !== 'smart');
   }
+
+  // Update theme selection
+  const currentTheme = await getTheme();
+  applyTheme(currentTheme);
+  const themeOptions = document.querySelectorAll('.theme-option');
+  themeOptions.forEach(opt => {
+    const theme = opt.getAttribute('data-theme');
+    opt.classList.toggle('active', theme === currentTheme);
+  });
 }
 
 export function initSettings() {
@@ -517,5 +542,19 @@ export function initSettings() {
     if (interval >= 1 && interval <= 120) {
       await setCommitInterval(interval);
     }
+  });
+
+  // Theme change
+  const themeOptions = document.querySelectorAll('.theme-option');
+  themeOptions.forEach(opt => {
+    opt.addEventListener('click', async () => {
+      const theme = opt.getAttribute('data-theme');
+      if (theme) {
+        await setTheme(theme);
+        applyTheme(theme);
+        themeOptions.forEach(o => o.classList.remove('active'));
+        opt.classList.add('active');
+      }
+    });
   });
 }

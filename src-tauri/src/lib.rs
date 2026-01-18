@@ -123,12 +123,32 @@ impl Default for GitSettings {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AppearanceSettings {
+    #[serde(default = "default_theme")]
+    pub theme: String,
+}
+
+fn default_theme() -> String {
+    "system".to_string()
+}
+
+impl Default for AppearanceSettings {
+    fn default() -> Self {
+        AppearanceSettings {
+            theme: default_theme(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Settings {
     pub vaults: Vec<Vault>,
     #[serde(default)]
     pub active_vault: Option<String>,
     #[serde(default)]
     pub git: GitSettings,
+    #[serde(default)]
+    pub appearance: AppearanceSettings,
 }
 
 fn get_settings_path() -> PathBuf {
@@ -159,6 +179,7 @@ fn load_settings() -> Settings {
         }],
         active_vault: None,
         git: GitSettings::default(),
+        appearance: AppearanceSettings::default(),
     };
     // Save default settings so IDs persist across calls
     let _ = save_settings(&settings);
@@ -1649,6 +1670,19 @@ fn set_commit_interval(interval: u32) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn get_theme() -> String {
+    let settings = load_settings();
+    settings.appearance.theme
+}
+
+#[tauri::command]
+fn set_theme(theme: String) -> Result<(), String> {
+    let mut settings = load_settings();
+    settings.appearance.theme = theme;
+    save_settings(&settings)
+}
+
+#[tauri::command]
 fn get_repo_stats() -> Result<RepoStats, String> {
     let notes_path = get_notes_path();
 
@@ -1928,6 +1962,8 @@ pub fn run() {
             get_git_mode,
             get_commit_interval,
             set_commit_interval,
+            get_theme,
+            set_theme,
             check_clone_path,
             clone_vault,
             get_default_clone_path,
