@@ -620,15 +620,18 @@ fn write_note(path: String, content: String) -> Result<(), String> {
     // Check if body content actually changed
     let content_changed = old_body.trim() != body.trim();
 
+    // If body hasn't changed, don't rewrite (avoids frontmatter reordering causing git dirty)
+    if !content_changed && old_content.is_some() {
+        return Ok(());
+    }
+
     // Merge frontmatter: prefer existing from content, fall back to file
     let mut fm = existing_fm.or(old_fm).unwrap_or_default();
     if fm.created.is_none() {
         fm.created = Some(now.clone());
     }
-    // Only update modified if content actually changed
-    if content_changed {
-        fm.modified = Some(now);
-    }
+    // Update modified timestamp since content changed
+    fm.modified = Some(now);
 
     // Write with updated frontmatter
     let final_content = format!("{}\n\n{}", format_frontmatter(&fm), body);

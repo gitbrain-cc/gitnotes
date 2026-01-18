@@ -1,5 +1,6 @@
 export interface FrontMatter {
   created?: string;
+  [key: string]: string | undefined;  // Preserve unknown fields
 }
 
 export interface ParsedNote {
@@ -20,7 +21,7 @@ export function parseFrontMatter(content: string): ParsedNote {
   const body = content.slice(match[0].length);
   const frontmatter: FrontMatter = {};
 
-  // Simple YAML parsing for our minimal schema
+  // Simple YAML parsing - preserve all key-value pairs
   const lines = yamlContent.split('\n');
   for (const line of lines) {
     const colonIndex = line.indexOf(':');
@@ -29,8 +30,8 @@ export function parseFrontMatter(content: string): ParsedNote {
     const key = line.slice(0, colonIndex).trim();
     const value = line.slice(colonIndex + 1).trim();
 
-    if (key === 'created' && value) {
-      frontmatter.created = value;
+    if (key && value) {
+      frontmatter[key] = value;
     }
   }
 
@@ -40,8 +41,11 @@ export function parseFrontMatter(content: string): ParsedNote {
 export function serializeFrontMatter(frontmatter: FrontMatter, body: string): string {
   const lines: string[] = [];
 
-  if (frontmatter.created) {
-    lines.push(`created: ${frontmatter.created}`);
+  // Output all frontmatter fields
+  for (const [key, value] of Object.entries(frontmatter)) {
+    if (value) {
+      lines.push(`${key}: ${value}`);
+    }
   }
 
   if (lines.length === 0) {
