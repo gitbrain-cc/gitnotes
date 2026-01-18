@@ -18,13 +18,18 @@ interface GitLogEntry {
 
 let isGitModeActive = false;
 let selectedItem: { type: 'file' | 'commit'; id: string } | null = null;
+let currentVaultPath: string | null = null;
+
+async function getVaultPath(): Promise<string> {
+  return await invoke('get_vault_path');
+}
 
 async function getDirtyFiles(): Promise<DirtyFile[]> {
   return await invoke('get_dirty_files');
 }
 
 async function getFileDiff(path: string): Promise<string> {
-  return await invoke('get_file_diff', { path });
+  return await invoke('get_file_diff', { path, vault_path: currentVaultPath });
 }
 
 async function getCommitDiff(hash: string): Promise<string> {
@@ -80,7 +85,7 @@ function getStatusLabel(status: string): string {
 }
 
 // Render functions
-function renderDiff(diff: string): void {
+function renderDiff(diff: string, singleFile = false): void {
   const container = document.getElementById('git-diff-content');
   if (!container) return;
 
@@ -90,15 +95,15 @@ function renderDiff(diff: string): void {
   }
 
   const html: string[] = [];
-  let currentFile: string | null = null;
 
   for (const line of diff.split('\n')) {
-    // Extract filename from diff header
+    // Skip diff header for single file view (redundant with header)
     if (line.startsWith('diff --git')) {
-      const match = line.match(/b\/(.+)$/);
-      if (match) {
-        currentFile = match[1];
-        html.push(`<div class="diff-file-header">${escapeHtml(currentFile)}</div>`);
+      if (!singleFile) {
+        const match = line.match(/b\/(.+)$/);
+        if (match) {
+          html.push(`<div class="diff-file-header">${escapeHtml(match[1])}</div>`);
+        }
       }
       continue;
     }
@@ -190,7 +195,7 @@ async function selectFile(path: string): Promise<void> {
   }
 
   const diff = await getFileDiff(path);
-  renderDiff(diff);
+  renderDiff(diff, true);
 }
 
 async function selectCommit(hash: string): Promise<void> {
@@ -225,26 +230,37 @@ export async function enterGitMode(): Promise<void> {
   document.getElementById('git-view')?.classList.remove('hidden');
   document.getElementById('git-status-box')?.classList.add('active');
 
-  // Load data
-  const [files, commits] = await Promise.all([
-    getDirtyFiles(),
-    getGitLog(50),
-  ]);
+  // Capture vault path at start of git mode
+  currentVaultPath = await getVaultPath();
+
+  // Load dirty files first to determine state
+  const files = await getDirtyFiles();
+  const isDirty = files.length > 0;
+
+  // Toggle sections based on dirty state
+  const historySection = document.getElementById('git-history-section');
+  if (historySection) {
+    historySection.classList.toggle('hidden', isDirty);
+  }
 
   renderUncommittedFiles(files);
-  renderCommits(commits);
 
-  // Auto-select first item
-  if (files.length > 0) {
+  // Auto-select first item based on state
+  if (isDirty) {
     await selectFile(files[0].path);
-  } else if (commits.length > 0) {
-    await selectCommit(commits[0].hash);
+  } else {
+    const commits = await getGitLog(50);
+    renderCommits(commits);
+    if (commits.length > 0) {
+      await selectCommit(commits[0].hash);
+    }
   }
 }
 
 export function exitGitMode(): void {
   isGitModeActive = false;
   selectedItem = null;
+  currentVaultPath = null;
 
   document.getElementById('notes-mode')?.classList.remove('hidden');
   document.getElementById('git-view')?.classList.add('hidden');

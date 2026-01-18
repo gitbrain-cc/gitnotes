@@ -622,7 +622,7 @@ fn create_note(section_path: String, name: String) -> Result<Note, String> {
         other: std::collections::HashMap::new(),
     };
 
-    let content = format!("{}\n\n# {}\n\n", format_frontmatter(&fm), name);
+    let content = format!("{}\n\n", format_frontmatter(&fm));
     fs::write(&path, content).map_err(|e| e.to_string())?;
 
     Ok(Note {
@@ -678,7 +678,7 @@ fn create_note_smart(section_path: String) -> Result<Note, String> {
         other: std::collections::HashMap::new(),
     };
 
-    let content = format!("{}\n\n# {}\n\n", format_frontmatter(&fm), name);
+    let content = format!("{}\n\n", format_frontmatter(&fm));
     fs::write(&file_path, content).map_err(|e| e.to_string())?;
 
     Ok(Note {
@@ -1199,21 +1199,53 @@ fn get_dirty_files() -> Result<Vec<DirtyFile>, String> {
 }
 
 #[tauri::command]
-fn get_file_diff(path: String) -> Result<String, String> {
-    let notes_path = get_notes_path();
+fn get_vault_path() -> String {
+    get_notes_path().to_string_lossy().to_string()
+}
 
-    // Try staged diff first, then unstaged
+#[tauri::command]
+fn get_file_diff(path: String, vault_path: Option<String>) -> Result<String, String> {
+    let notes_path = vault_path
+        .map(PathBuf::from)
+        .unwrap_or_else(get_notes_path);
+
+    // Try diff against HEAD (modified files)
     let output = Command::new("git")
         .args(["diff", "HEAD", "--", &path])
         .current_dir(&notes_path)
         .output()
         .map_err(|e| e.to_string())?;
 
-    if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
-    } else {
-        Ok(String::new())
+    let diff = String::from_utf8_lossy(&output.stdout).to_string();
+    if !diff.is_empty() {
+        return Ok(diff);
     }
+
+    // Try staged diff (new staged files)
+    let output = Command::new("git")
+        .args(["diff", "--cached", "--", &path])
+        .current_dir(&notes_path)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let diff = String::from_utf8_lossy(&output.stdout).to_string();
+    if !diff.is_empty() {
+        return Ok(diff);
+    }
+
+    // For untracked files, show content as addition
+    let file_path = notes_path.join(&path);
+    if file_path.exists() && file_path.is_file() {
+        if let Ok(content) = std::fs::read_to_string(&file_path) {
+            let lines: Vec<String> = content.lines().map(|l| format!("+{}", l)).collect();
+            return Ok(format!(
+                "diff --git a/{path} b/{path}\nnew file\n--- /dev/null\n+++ b/{path}\n@@\n{}",
+                lines.join("\n")
+            ));
+        }
+    }
+
+    Ok(String::new())
 }
 
 #[tauri::command]
@@ -1877,6 +1909,7 @@ pub fn run() {
             search_notes,
             get_repo_status,
             get_dirty_files,
+            get_vault_path,
             get_file_diff,
             get_commit_diff,
             get_git_log,

@@ -1295,7 +1295,8 @@ body {
   font-size: 10px;
 }
 
-#git-uncommitted-section.hidden {
+#git-uncommitted-section.hidden,
+#git-history-section.hidden {
   display: none;
 }
 
