@@ -1,4 +1,4 @@
-# Onboarding TODO
+# Onboarding ✅ Done
 
 ## Overview
 
@@ -6,37 +6,35 @@ First-run experience to set up NoteOne with a notes repository.
 
 ## Flow
 
-1. **Welcome screen**
-   - App intro / branding
-   - "Get Started" CTA
+1. **Welcome screen** ✅ Done
+   - [x] App intro / branding
+   - [x] "Get Started" CTA
 
-2. **Connect repository**
-   - Clone existing git repo (URL input)
-   - Open local folder
-   - Create new vault (init git repo)
+2. **Connect repository** ✅ Done
+   - [x] Clone existing git repo (SSH URL)
+   - [x] Open local folder
+   - [x] Create new vault (init git repo)
 
-3. **Import existing notes** (optional)
-   - OneNote import wizard
-   - Obsidian vault migration
-   - Plain markdown folder
+3. **Import existing notes** (future)
+   - [ ] OneNote import wizard
+   - [ ] Obsidian vault migration
+   - [ ] Plain markdown folder
 
-4. **Configuration**
-   - Git identity (name/email) if not set
-   - Saving mechanism preference:
-     - Auto-commit on save (default)
-     - Manual commits only (expert mode)
-     - Sync frequency for remote push
-   - Theme preference
-   - Default section setup
+4. **Configuration** ✅ Done (via Settings)
+   - [ ] Git identity (name/email) if not set
+   - [x] Saving mechanism preference (simple/manual/smart modes)
+   - [x] Theme preference (6 themes)
+   - [ ] Default section setup
 
 ## Technical
 
-- Currently hardcoded: `src-tauri/src/lib.rs:237`
-- Need: config file (`~/.config/noteone/config.json` or similar)
-- Store recent vaults for quick switching
+- [x] Config file support (`~/Library/Application Support/noteone/settings.json`)
+- [x] Store vaults for quick switching
+- [x] Onboarding trigger: `settings.vaults.length === 0`
 
-## Multi-vault support
+## Multi-vault support ✅ Done
 
-- Vault switcher in UI (top-left dropdown?)
-- Recent vaults list
-- Each vault = independent git repo
+- [x] Vault switcher in Settings UI
+- [x] Add/remove vaults
+- [x] Each vault = independent git repo
+- [ ] Vault switcher in main UI (top-left dropdown?)

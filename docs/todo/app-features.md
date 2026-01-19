@@ -6,9 +6,10 @@
 
 ## Git
 
-- [ ] Show current status first (uncommitted changes with quick diff access)
+- [x] Show diff stats in git status
 - [ ] Move commit history to tabs or separate view
 
 ## UX
 
+- [x] Remember last opened note per section
 - [ ] More keyboard shortcuts

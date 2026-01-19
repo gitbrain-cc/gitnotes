@@ -256,6 +256,95 @@
     </div>
   </div>
 
+  <div id="onboarding-overlay" class="modal-overlay hidden">
+    <div class="onboarding-modal">
+      <!-- Step 1: Welcome -->
+      <div class="onboarding-step" data-step="welcome">
+        <div class="onboarding-logo">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <line x1="10" y1="9" x2="8" y2="9"></line>
+          </svg>
+        </div>
+        <h1>Welcome to NoteOne</h1>
+        <p class="onboarding-tagline">Git-native markdown notes for developers who think in plain text</p>
+        <button id="onboarding-start" class="onboarding-btn primary">Get Started</button>
+      </div>
+
+      <!-- Step 2: Vault setup -->
+      <div class="onboarding-step hidden" data-step="setup">
+        <h2>Set up your repository</h2>
+        <div class="vault-options">
+          <button class="vault-option" data-action="open-local">
+            <div class="vault-option-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </div>
+            <div class="vault-option-content">
+              <div class="vault-option-name">Open local folder</div>
+              <div class="vault-option-desc">Use an existing git repository</div>
+            </div>
+          </button>
+          <button class="vault-option" data-action="clone">
+            <div class="vault-option-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </div>
+            <div class="vault-option-content">
+              <div class="vault-option-name">Clone from Git</div>
+              <div class="vault-option-desc">SSH URL (git@...)</div>
+            </div>
+          </button>
+          <button class="vault-option" data-action="create">
+            <div class="vault-option-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="14 2 18 6 7 17 3 17 3 13 14 2"></polygon>
+                <line x1="3" y1="22" x2="21" y2="22"></line>
+              </svg>
+            </div>
+            <div class="vault-option-content">
+              <div class="vault-option-name">Create new vault</div>
+              <div class="vault-option-desc">Start fresh with git init</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 3: Create vault form -->
+      <div class="onboarding-step hidden" data-step="create">
+        <button class="onboarding-back" id="create-back-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+          Back
+        </button>
+        <h2>Create new vault</h2>
+        <div class="onboarding-form">
+          <div class="onboarding-field">
+            <label for="new-vault-name">Vault name</label>
+            <input type="text" id="new-vault-name" placeholder="notes" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="onboarding-field">
+            <label for="new-vault-path">Location</label>
+            <div class="onboarding-path-row">
+              <input type="text" id="new-vault-path" readonly>
+              <button id="browse-vault-path" class="onboarding-browse">Browse</button>
+            </div>
+          </div>
+          <div id="create-vault-error" class="onboarding-error hidden"></div>
+          <button id="create-vault-btn" class="onboarding-btn primary" disabled>Create</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

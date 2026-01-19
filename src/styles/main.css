@@ -1620,3 +1620,233 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Onboarding Modal */
+#onboarding-overlay {
+  z-index: 3000; /* Above everything */
+}
+
+.onboarding-modal {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  width: 440px;
+  max-width: 90vw;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.onboarding-step {
+  padding: 40px 32px;
+  text-align: center;
+}
+
+.onboarding-step.hidden {
+  display: none;
+}
+
+.onboarding-logo {
+  margin-bottom: 24px;
+  color: var(--accent-color);
+}
+
+.onboarding-step h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 8px 0;
+}
+
+.onboarding-step h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 24px 0;
+}
+
+.onboarding-tagline {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0 0 32px 0;
+  line-height: 1.5;
+}
+
+/* Onboarding Buttons */
+.onboarding-btn {
+  padding: 12px 32px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.onboarding-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.onboarding-btn.primary {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: var(--bg-primary);
+}
+
+.onboarding-btn.primary:hover {
+  filter: brightness(1.1);
+}
+
+.onboarding-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Vault Options */
+.vault-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+.vault-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: var(--bg-secondary);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.vault-option:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+.vault-option-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+  color: var(--accent-color);
+  flex-shrink: 0;
+}
+
+.vault-option-content {
+  flex: 1;
+}
+
+.vault-option-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.vault-option-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Onboarding Form */
+.onboarding-form {
+  text-align: left;
+}
+
+.onboarding-field {
+  margin-bottom: 16px;
+}
+
+.onboarding-field label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.onboarding-field input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.onboarding-field input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.onboarding-path-row {
+  display: flex;
+  gap: 8px;
+}
+
+.onboarding-path-row input {
+  flex: 1;
+}
+
+.onboarding-browse {
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.onboarding-browse:hover {
+  background: var(--bg-tertiary);
+}
+
+.onboarding-error {
+  color: #ef4444;
+  font-size: 13px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 8px;
+}
+
+.onboarding-error.hidden {
+  display: none;
+}
+
+.onboarding-form .onboarding-btn {
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* Back Button */
+.onboarding-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 20px;
+}
+
+.onboarding-back:hover {
+  color: var(--text-primary);
+}

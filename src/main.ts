@@ -6,6 +6,7 @@ import { parseFrontMatter, serializeFrontMatter, FrontMatter } from './frontmatt
 import { initGitStatus, refreshGitStatus } from './git-status';
 import { initSettings, getGitMode, getCommitInterval, isSettingsOpen, closeSettings, getTheme, applyTheme } from './settings';
 import { initGitView, isGitModeOpen, exitGitMode } from './git-view';
+import { checkOnboarding, initOnboarding, showOnboarding } from './onboarding';
 
 interface Section {
   name: string;
@@ -381,6 +382,13 @@ async function init() {
     // Apply theme immediately to prevent flash
     const theme = await getTheme();
     applyTheme(theme);
+
+    // Check if onboarding is needed (no vaults configured)
+    if (await checkOnboarding()) {
+      initOnboarding();
+      showOnboarding();
+      return; // Don't init other UI until vault is set up
+    }
 
     initEditor();
     initSearchBar(handleSearchSelect);

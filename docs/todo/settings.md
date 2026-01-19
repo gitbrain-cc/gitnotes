@@ -2,13 +2,15 @@
 
 ## Notes Directory
 
-- [ ] Change default notes path
-- [ ] Support multiple notes directories
+- [x] Support multiple notes directories (multi-vault)
+- [x] Add local folder
+- [x] Clone remote repository
 
 ## Theme
 
-- [ ] Light mode option
-- [ ] System theme detection (auto dark/light)
+- [x] Light mode option
+- [x] System theme detection (auto dark/light)
+- [x] 6 themes (system, light, dark, nord, solarized-dark, dracula)
 - [ ] Custom accent color
 
 ## Editor
@@ -21,22 +23,11 @@
 
 ## Git
 
-### Commit Behavior (Default: Simple)
+### Commit Behavior
 
-**Simple mode** (default for average users):
-- [ ] Auto-commit on save (current behavior)
-- [ ] Auto-push to remote (optional)
-
-**Manual mode** (for control freaks):
-- [ ] No auto-commit - explicit commit button/shortcut only
-- [ ] Commit message prompt before each commit
-- [ ] Stage changes individually
-
-**Smart mode** (balanced):
-- [ ] Batch commits - only commit if N minutes since last commit
-- [ ] Commit on file switch (not every save)
-- [ ] Commit on app close / section change
-- [ ] Squash rapid edits into single commit
+- [x] **Simple mode** - Auto-commit on save
+- [x] **Manual mode** - No auto-commit, explicit only
+- [x] **Smart mode** - Batch commits with configurable interval (1-120 min)
 
 ### Commit Messages
 

@@ -114,7 +114,7 @@ pub struct GitSettings {
 }
 
 fn default_commit_mode() -> String {
-    "smart".to_string()
+    "manual".to_string()
 }
 
 fn default_commit_interval() -> u32 {
@@ -137,7 +137,7 @@ pub struct AppearanceSettings {
 }
 
 fn default_theme() -> String {
-    "system".to_string()
+    "original".to_string()
 }
 
 impl Default for AppearanceSettings {
@@ -175,23 +175,13 @@ fn load_settings() -> Settings {
             }
         }
     }
-    // Default: create vault from current hardcoded path
-    let default_path = dirs::home_dir()
-        .unwrap_or_default()
-        .join("tetronomis/dotfiles/notes");
-    let settings = Settings {
-        vaults: vec![Vault {
-            id: generate_id(),
-            name: "notes".to_string(),
-            path: default_path.to_string_lossy().to_string(),
-        }],
+    // Return empty settings for onboarding flow
+    Settings {
+        vaults: vec![],
         active_vault: None,
         git: GitSettings::default(),
         appearance: AppearanceSettings::default(),
-    };
-    // Save default settings so IDs persist across calls
-    let _ = save_settings(&settings);
-    settings
+    }
 }
 
 fn save_settings(settings: &Settings) -> Result<(), String> {
@@ -2055,6 +2045,60 @@ fn get_default_clone_path(url: String) -> Result<String, String> {
     Ok(path.to_string_lossy().to_string())
 }
 
+#[tauri::command]
+async fn create_vault(path: String, name: String) -> Result<Vault, String> {
+    let vault_path = PathBuf::from(&path);
+
+    // Create directory if not exists
+    if !vault_path.exists() {
+        fs::create_dir_all(&vault_path).map_err(|e| format!("Failed to create directory: {}", e))?;
+    }
+
+    // Check if already a git repo
+    let git_dir = vault_path.join(".git");
+    if !git_dir.exists() {
+        // git init
+        let init_result = Command::new("git")
+            .args(["init"])
+            .current_dir(&vault_path)
+            .output()
+            .map_err(|e| format!("Failed to run git: {}", e))?;
+
+        if !init_result.status.success() {
+            let stderr = String::from_utf8_lossy(&init_result.stderr);
+            return Err(format!("git init failed: {}", stderr.trim()));
+        }
+
+        // Create initial .gitignore
+        let gitignore_path = vault_path.join(".gitignore");
+        let gitignore_content = ".DS_Store\n*.swp\n*.swo\n*~\n";
+        fs::write(&gitignore_path, gitignore_content)
+            .map_err(|e| format!("Failed to create .gitignore: {}", e))?;
+    }
+
+    // Create vault object
+    let vault = Vault {
+        id: generate_id(),
+        name,
+        path,
+    };
+
+    // Add to settings
+    let mut settings = load_settings();
+    settings.vaults.push(vault.clone());
+    settings.active_vault = Some(vault.id.clone());
+    save_settings(&settings)?;
+
+    Ok(vault)
+}
+
+#[tauri::command]
+fn get_default_vault_path(name: String) -> Result<String, String> {
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let path = home.join("GitNotes").join(&name);
+    Ok(path.to_string_lossy().to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let notes_path = get_notes_path();
@@ -2171,6 +2215,8 @@ pub fn run() {
             check_clone_path,
             clone_vault,
             get_default_clone_path,
+            create_vault,
+            get_default_vault_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
