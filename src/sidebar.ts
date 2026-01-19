@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import {
   loadSections, loadNotes, setCurrentNote, setStatus,
   createNoteSmart, deleteNote, renameNote, createSection, deleteSection, moveNote,
@@ -422,9 +423,11 @@ async function selectSection(section: Section) {
   const notes = await loadNotes(section.path);
   renderNotes(notes);
 
-  // Select first note if any
+  // Select last opened note, or first if none stored
   if (notes.length > 0) {
-    await selectNote(notes[0]);
+    const lastNotePath = await invoke<string | null>('get_last_note', { sectionPath: section.path });
+    const lastNote = lastNotePath ? notes.find(n => n.path === lastNotePath) : null;
+    await selectNote(lastNote || notes[0]);
   } else {
     setCurrentNote(null);
     loadContent('');
@@ -465,6 +468,12 @@ function renderNotes(notes: Note[]) {
 
 export async function selectNote(note: Note, matchLine?: number, searchTerm?: string) {
   await trySmartCommit();
+
+  // Save as last opened note for current section (fire-and-forget)
+  if (currentSection) {
+    invoke('set_last_note', { sectionPath: currentSection.path, notePath: note.path });
+  }
+
   // Update UI
   const notesList = document.getElementById('pages-list');
   if (notesList) {

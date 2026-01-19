@@ -30,6 +30,8 @@ pub struct SectionMetadata {
     pub pinned: Vec<String>,
     #[serde(default)]
     pub order: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_note: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -354,6 +356,9 @@ fn save_section_metadata(section_path: &PathBuf, metadata: &SectionMetadata) -> 
             lines.push(format!("  - {}", item));
         }
     }
+    if let Some(ref last_note) = metadata.last_note {
+        lines.push(format!("last_note: \"{}\"", last_note));
+    }
 
     lines.push("---".to_string());
 
@@ -479,6 +484,26 @@ fn set_sort_preference(section_path: String, sort: String) -> Result<(), String>
     let mut metadata = load_section_metadata(&path);
     metadata.sort = sort;
     save_section_metadata(&path, &metadata)
+}
+
+#[tauri::command]
+fn get_last_note(section_path: String) -> Result<Option<String>, String> {
+    let path = PathBuf::from(&section_path);
+    let metadata = load_section_metadata(&path);
+    Ok(metadata.last_note)
+}
+
+#[tauri::command]
+fn set_last_note(section_path: String, note_path: String) -> Result<(), String> {
+    let path = PathBuf::from(&section_path);
+    let mut metadata = load_section_metadata(&path);
+    // Only save if changed to avoid unnecessary YAML reformatting
+    if metadata.last_note.as_ref() != Some(&note_path) {
+        metadata.last_note = Some(note_path);
+        save_section_metadata(&path, &metadata)
+    } else {
+        Ok(())
+    }
 }
 
 #[tauri::command]
@@ -1021,6 +1046,8 @@ pub struct RepoStatus {
     pub repo_name: String,
     pub is_dirty: bool,
     pub dirty_count: u32,
+    pub insertions: u32,
+    pub deletions: u32,
     pub last_commit_hash: Option<String>,
     pub last_commit_message: Option<String>,
     pub last_commit_date: Option<String>,
@@ -1237,6 +1264,39 @@ fn get_repo_status() -> Result<RepoStatus, String> {
 
     let is_dirty = dirty_count > 0;
 
+    // Get diff stats (insertions/deletions) for uncommitted changes
+    let (insertions, deletions) = if is_dirty {
+        // Get stats for both staged and unstaged changes
+        let diff_output = Command::new("git")
+            .args(["diff", "--numstat", "HEAD"])
+            .current_dir(&notes_path)
+            .output();
+
+        match diff_output {
+            Ok(output) if output.status.success() => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let mut ins: u32 = 0;
+                let mut del: u32 = 0;
+                for line in stdout.lines() {
+                    let parts: Vec<&str> = line.split('\t').collect();
+                    if parts.len() >= 2 {
+                        // Binary files show "-" instead of numbers
+                        if let Ok(i) = parts[0].parse::<u32>() {
+                            ins += i;
+                        }
+                        if let Ok(d) = parts[1].parse::<u32>() {
+                            del += d;
+                        }
+                    }
+                }
+                (ins, del)
+            }
+            _ => (0, 0),
+        }
+    } else {
+        (0, 0)
+    };
+
     // Get last commit info
     let log_output = Command::new("git")
         .args(["log", "-1", "--format=%H|%s|%aI|%an"])
@@ -1265,6 +1325,8 @@ fn get_repo_status() -> Result<RepoStatus, String> {
         repo_name,
         is_dirty,
         dirty_count,
+        insertions,
+        deletions,
         last_commit_hash,
         last_commit_message,
         last_commit_date,
@@ -2089,6 +2151,8 @@ pub fn run() {
             get_repo_stats,
             get_sort_preference,
             set_sort_preference,
+            get_last_note,
+            set_last_note,
             set_section_metadata,
             save_section_order,
             get_settings,

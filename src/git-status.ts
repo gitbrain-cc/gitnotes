@@ -5,6 +5,8 @@ interface RepoStatus {
   repo_name: string;
   is_dirty: boolean;
   dirty_count: number;
+  insertions: number;
+  deletions: number;
   last_commit_hash: string | null;
   last_commit_message: string | null;
   last_commit_date: string | null;
@@ -50,17 +52,26 @@ function renderStatus(status: RepoStatus): void {
       : 'All changes committed';
   }
 
-  // Update last commit text
+  // Update status text (dirty stats or last commit)
   const commitEl = document.querySelector('#git-status-box .git-last-commit');
   if (commitEl) {
-    const commitText = status.last_commit_date && status.last_commit_message
-      ? `${formatRelativeTime(status.last_commit_date)} · ${
-          status.last_commit_message.length > 20
-            ? status.last_commit_message.slice(0, 20) + '...'
-            : status.last_commit_message
-        }`
-      : 'No commits yet';
-    commitEl.textContent = commitText;
+    let statusText: string;
+    if (status.is_dirty) {
+      // Show dirty stats: "3 changes · +15 -8"
+      const fileText = `${status.dirty_count} change${status.dirty_count !== 1 ? 's' : ''}`;
+      const statsText = `+${status.insertions} -${status.deletions}`;
+      statusText = `${fileText} · ${statsText}`;
+    } else if (status.last_commit_date && status.last_commit_message) {
+      // Show last commit info when clean
+      statusText = `${formatRelativeTime(status.last_commit_date)} · ${
+        status.last_commit_message.length > 20
+          ? status.last_commit_message.slice(0, 20) + '...'
+          : status.last_commit_message
+      }`;
+    } else {
+      statusText = 'No commits yet';
+    }
+    commitEl.textContent = statusText;
   }
 }
 
