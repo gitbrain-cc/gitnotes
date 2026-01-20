@@ -424,18 +424,6 @@ fn get_notes_path() -> PathBuf {
     }
 }
 
-fn load_order_config(dir: &PathBuf) -> OrderConfig {
-    let order_file = dir.join(".order.json");
-    if order_file.exists() {
-        if let Ok(content) = fs::read_to_string(&order_file) {
-            if let Ok(config) = serde_json::from_str(&content) {
-                return config;
-            }
-        }
-    }
-    OrderConfig::default()
-}
-
 fn load_gitnotes_config(vault_path: &PathBuf) -> GitNotesConfig {
     let config_file = vault_path.join(".gitnotes");
     if config_file.exists() {

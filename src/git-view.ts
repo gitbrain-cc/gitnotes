@@ -1,5 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { refreshGitStatus } from './git-status';
+import { getSettings, setActiveVault, getVaultStats } from './settings';
+import { initSidebar } from './sidebar';
+import { loadAllNotes } from './search-bar';
 
 interface DirtyFile {
   path: string;
@@ -77,6 +80,83 @@ function escapeHtml(text: string): string {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function createRepoBoxHtml(vault: { id: string; name: string }, stats: { note_count: number; last_modified: string | null } | null): string {
+  // Build subtitle: "X notes · 2h ago"
+  const parts: string[] = [];
+  if (stats?.note_count !== undefined) {
+    parts.push(`${stats.note_count} note${stats.note_count !== 1 ? 's' : ''}`);
+  }
+  if (stats?.last_modified) {
+    // Backend already returns human-readable relative time
+    parts.push(stats.last_modified);
+  }
+  const subtitle = parts.join(' · ') || '';
+
+  return `
+    <div class="git-repo-box inactive" data-vault-id="${vault.id}">
+      <svg class="git-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="18" cy="18" r="3"></circle>
+        <circle cx="6" cy="6" r="3"></circle>
+        <path d="M13 6h3a2 2 0 0 1 2 2v7"></path>
+        <line x1="6" y1="9" x2="6" y2="21"></line>
+      </svg>
+      <div class="git-status-info">
+        <div class="git-status-content">
+          <span class="git-repo-name">${escapeHtml(vault.name)}</span>
+        </div>
+        <div class="git-last-commit">${escapeHtml(subtitle)}</div>
+      </div>
+    </div>
+  `;
+}
+
+async function renderOtherRepos(): Promise<void> {
+  const container = document.getElementById('other-repos-container');
+  if (!container) return;
+
+  const settings = await getSettings();
+  const activeId = settings.active_vault || settings.vaults[0]?.id;
+  const otherVaults = settings.vaults.filter(v => v.id !== activeId);
+
+  if (otherVaults.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  // Fetch stats for all other vaults in parallel
+  const statsMap = new Map<string, { note_count: number; last_modified: string | null }>();
+  await Promise.all(
+    otherVaults.map(async (vault) => {
+      try {
+        const stats = await getVaultStats(vault.id);
+        statsMap.set(vault.id, {
+          note_count: stats.note_count,
+          last_modified: stats.last_modified,
+        });
+      } catch (e) {
+        console.error('Failed to get stats for vault:', vault.id, e);
+      }
+    })
+  );
+
+  container.innerHTML = otherVaults.map(vault =>
+    createRepoBoxHtml(vault, statsMap.get(vault.id) || null)
+  ).join('');
+}
+
+async function handleRepoSwitch(vaultId: string): Promise<void> {
+  // 1. Set new active vault
+  await setActiveVault(vaultId);
+
+  // 2. Exit git view
+  exitGitMode();
+
+  // 3. Soft reload - reinitialize components
+  await initSidebar();
+  await loadAllNotes();
+  await refreshGitStatus();
 }
 
 function getStatusClass(status: string): string {
@@ -239,6 +319,8 @@ function updateSelection(): void {
 
 export async function enterGitMode(): Promise<void> {
   isGitModeActive = true;
+  document.body.classList.add('git-view-active');
+  await renderOtherRepos();
 
   document.getElementById('notes-mode')?.classList.add('hidden');
   document.getElementById('git-view')?.classList.remove('hidden');
@@ -273,6 +355,9 @@ export async function enterGitMode(): Promise<void> {
 
 export function exitGitMode(): void {
   isGitModeActive = false;
+  document.body.classList.remove('git-view-active');
+  const otherReposContainer = document.getElementById('other-repos-container');
+  if (otherReposContainer) otherReposContainer.innerHTML = '';
   selectedItem = null;
   currentVaultPath = null;
 
@@ -406,6 +491,15 @@ export function initGitView(): void {
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       e.preventDefault();
       navigateList(e.key === 'ArrowUp' ? -1 : 1);
+    }
+  });
+
+  // Click handler for other repos
+  document.getElementById('other-repos-container')?.addEventListener('click', (e) => {
+    const box = (e.target as HTMLElement).closest('.git-repo-box');
+    if (box) {
+      const vaultId = box.getAttribute('data-vault-id');
+      if (vaultId) handleRepoSwitch(vaultId);
     }
   });
 }

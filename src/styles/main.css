@@ -309,6 +309,34 @@ body {
   border-color: transparent;
 }
 
+/* Other repos container - only visible in git view */
+#other-repos-container {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+}
+
+body.git-view-active #other-repos-container {
+  display: flex;
+}
+
+body.git-view-active #search-container {
+  display: none;
+}
+
+/* Inactive repo box styling */
+.git-repo-box.inactive {
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.git-repo-box.inactive:hover {
+  opacity: 1;
+  background: var(--bg-primary);
+  border-color: var(--border-color);
+}
+
 #search-container {
   flex: 1;
   max-width: 500px;
@@ -1163,19 +1191,73 @@ body {
   color: var(--text-secondary);
 }
 
-/* Vault actions - two buttons */
+/* Vault actions */
 #vault-actions {
-  display: flex;
-  gap: 8px;
   margin-bottom: 16px;
 }
 
-#vault-actions .settings-action-btn {
-  flex: 1;
+/* Add repo dropdown */
+.add-repo-dropdown {
+  position: relative;
+  display: inline-block;
 }
 
-#vault-actions .settings-action-btn.secondary {
+#add-repo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
   background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+#add-repo-btn:hover {
+  color: var(--accent-color);
+}
+
+#add-repo-btn .dropdown-chevron {
+  transition: transform 0.15s ease;
+}
+
+.add-repo-dropdown.active #add-repo-btn .dropdown-chevron {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  margin-top: 4px;
+  min-width: 160px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.dropdown-menu.hidden {
+  display: none;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dropdown-item:hover {
+  background: var(--bg-tertiary);
 }
 
 /* Clone form fields */
@@ -1294,11 +1376,13 @@ body {
 }
 
 /* Clone modal */
-#clone-overlay {
+#clone-overlay,
+#create-overlay {
   z-index: 2001; /* Above settings modal (2000) */
 }
 
-#clone-modal {
+#clone-modal,
+#create-modal {
   background: var(--bg-primary);
   border-radius: 12px;
   width: 400px;

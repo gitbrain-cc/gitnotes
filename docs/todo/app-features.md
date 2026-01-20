@@ -7,9 +7,9 @@
 ## Git
 
 - [x] Show diff stats in git status
-- [ ] Move commit history to tabs or separate view
 
 ## UX
 
 - [x] Remember last opened note per section
+- [x] Unified "Add Repository" dropdown in Settings (local, clone, create)
 - [ ] More keyboard shortcuts

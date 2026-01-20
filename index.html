@@ -26,6 +26,7 @@
         </div>
       </div>
     </div>
+    <div id="other-repos-container"></div>
     <div id="search-container">
       <input type="text" id="search-input" placeholder="Search files and content..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-form-type="other">
       <div id="search-results">
@@ -135,8 +136,19 @@
           <div id="panel-repositories" class="settings-panel active">
             <div id="vault-list"></div>
             <div id="vault-actions">
-              <button id="add-local-btn" class="settings-action-btn">+ Add Local Folder</button>
-              <button id="clone-repo-btn" class="settings-action-btn secondary">+ Clone Repository</button>
+              <div id="add-repo-dropdown" class="add-repo-dropdown">
+                <button id="add-repo-btn">
+                  + Add Repository
+                  <svg class="dropdown-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+                <div id="add-repo-menu" class="dropdown-menu hidden">
+                  <button class="dropdown-item" data-action="local">Add Local Folder</button>
+                  <button class="dropdown-item" data-action="clone">Clone Repository</button>
+                  <button class="dropdown-item" data-action="create">Create Repository</button>
+                </div>
+              </div>
             </div>
           </div>
           <div id="panel-git" class="settings-panel">
@@ -251,6 +263,33 @@
         <div class="clone-actions">
           <button id="clone-cancel-btn" class="settings-action-btn secondary">Cancel</button>
           <button id="clone-submit-btn" class="settings-action-btn" disabled>Clone</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="create-overlay" class="modal-overlay hidden">
+    <div id="create-modal">
+      <div class="clone-modal-header">
+        <h3>Create Repository</h3>
+        <button id="create-modal-close" class="modal-close">&times;</button>
+      </div>
+      <div class="clone-modal-content">
+        <div class="clone-field">
+          <label for="create-vault-name">Repository name</label>
+          <input type="text" id="create-vault-name" placeholder="notes" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="clone-field">
+          <label for="create-vault-path">Location</label>
+          <div class="clone-path-row">
+            <input type="text" id="create-vault-path" readonly>
+            <button id="create-browse-btn" class="clone-browse">Browse</button>
+          </div>
+        </div>
+        <div id="create-vault-error" class="clone-error hidden"></div>
+        <div class="clone-actions">
+          <button id="create-cancel-btn" class="settings-action-btn secondary">Cancel</button>
+          <button id="create-vault-btn" class="settings-action-btn" disabled>Create</button>
         </div>
       </div>
     </div>

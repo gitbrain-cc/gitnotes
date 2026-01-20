@@ -1,5 +1,15 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import {
+  initCloneModal,
+  initCreateModal,
+  openCloneModal,
+  closeCloneModal,
+  openCreateModal,
+  closeCreateModal,
+  isCloneModalOpen,
+  isCreateModalOpen,
+} from './modals';
 
 interface Vault {
   id: string;
@@ -27,20 +37,6 @@ interface Settings {
   vaults: Vault[];
   active_vault: string | null;
   git: GitSettings;
-}
-
-type ClonePathStatus = 'Empty' | 'SameRemote' | 'DifferentRemote' | 'NotGit' | 'NotEmpty';
-
-async function checkClonePath(url: string, path: string): Promise<ClonePathStatus> {
-  return await invoke('check_clone_path', { url, path });
-}
-
-async function cloneVault(url: string, path: string): Promise<Vault> {
-  return await invoke('clone_vault', { url, path });
-}
-
-async function getDefaultClonePath(url: string): Promise<string> {
-  return await invoke('get_default_clone_path', { url });
 }
 
 let isOpen = false;
@@ -95,11 +91,11 @@ async function removeVault(vaultId: string): Promise<void> {
   return await invoke('remove_vault', { vaultId });
 }
 
-async function getVaultStats(vaultId: string): Promise<VaultStats> {
+export async function getVaultStats(vaultId: string): Promise<VaultStats> {
   return await invoke('get_vault_stats', { vaultId });
 }
 
-async function setActiveVault(vaultId: string): Promise<void> {
+export async function setActiveVault(vaultId: string): Promise<void> {
   return await invoke('set_active_vault', { vaultId });
 }
 
@@ -115,83 +111,6 @@ function truncatePath(path: string, maxLength: number = 35): string {
     result = next;
   }
   return result;
-}
-
-// Clone modal state and helpers
-let cloneModalOpen = false;
-
-function openCloneModal() {
-  const overlay = document.getElementById('clone-overlay');
-  if (overlay) {
-    overlay.classList.remove('hidden');
-    cloneModalOpen = true;
-    document.getElementById('clone-url')?.focus();
-  }
-}
-
-function closeCloneModal() {
-  const overlay = document.getElementById('clone-overlay');
-  const urlInput = document.getElementById('clone-url') as HTMLInputElement;
-  const pathInput = document.getElementById('clone-path') as HTMLInputElement;
-  const errorDiv = document.getElementById('clone-error');
-  const progressDiv = document.getElementById('clone-progress');
-  const submitBtn = document.getElementById('clone-submit-btn') as HTMLButtonElement;
-
-  if (overlay) {
-    overlay.classList.add('hidden');
-    cloneModalOpen = false;
-  }
-
-  // Reset form
-  if (urlInput) urlInput.value = '';
-  if (pathInput) pathInput.value = '';
-  if (errorDiv) errorDiv.classList.add('hidden');
-  if (progressDiv) progressDiv.classList.add('hidden');
-  if (submitBtn) submitBtn.disabled = true;
-}
-
-function showCloneError(message: string) {
-  const errorDiv = document.getElementById('clone-error');
-  if (errorDiv) {
-    errorDiv.textContent = message;
-    errorDiv.classList.remove('hidden');
-  }
-}
-
-function hideCloneError() {
-  const errorDiv = document.getElementById('clone-error');
-  if (errorDiv) errorDiv.classList.add('hidden');
-}
-
-function showCloneProgress() {
-  const progressDiv = document.getElementById('clone-progress');
-  const submitBtn = document.getElementById('clone-submit-btn') as HTMLButtonElement;
-  const cancelBtn = document.getElementById('clone-cancel-btn') as HTMLButtonElement;
-
-  if (progressDiv) progressDiv.classList.remove('hidden');
-  if (submitBtn) submitBtn.disabled = true;
-  if (cancelBtn) cancelBtn.disabled = true;
-}
-
-function hideCloneProgress() {
-  const progressDiv = document.getElementById('clone-progress');
-  const cancelBtn = document.getElementById('clone-cancel-btn') as HTMLButtonElement;
-
-  if (progressDiv) progressDiv.classList.add('hidden');
-  if (cancelBtn) cancelBtn.disabled = false;
-}
-
-function isValidSshUrl(url: string): boolean {
-  return /^git@[\w.-]+:[\w./-]+$/.test(url) || /^ssh:\/\/[\w@.-]+\/[\w./-]+$/.test(url);
-}
-
-function updateCloneButton() {
-  const urlInput = document.getElementById('clone-url') as HTMLInputElement;
-  const submitBtn = document.getElementById('clone-submit-btn') as HTMLButtonElement;
-
-  if (urlInput && submitBtn) {
-    submitBtn.disabled = !isValidSshUrl(urlInput.value.trim());
-  }
 }
 
 async function renderVaultList() {
@@ -347,15 +266,9 @@ async function loadSettingsData() {
 export function initSettings() {
   const closeBtn = document.getElementById('settings-close');
   const overlay = document.getElementById('settings-overlay');
-  const addLocalBtn = document.getElementById('add-local-btn');
-  const cloneRepoBtn = document.getElementById('clone-repo-btn');
-  const cloneCancelBtn = document.getElementById('clone-cancel-btn');
-  const cloneSubmitBtn = document.getElementById('clone-submit-btn');
-  const cloneUrlInput = document.getElementById('clone-url') as HTMLInputElement;
-  const clonePathInput = document.getElementById('clone-path') as HTMLInputElement;
-  const cloneBrowseBtn = document.getElementById('clone-browse-btn');
-  const cloneModalCloseBtn = document.getElementById('clone-modal-close');
-  const cloneOverlay = document.getElementById('clone-overlay');
+  const addRepoBtn = document.getElementById('add-repo-btn');
+  const addRepoDropdown = document.getElementById('add-repo-dropdown');
+  const addRepoMenu = document.getElementById('add-repo-menu');
   const gitModeOptions = document.querySelectorAll('.git-mode-option');
   const tabs = document.querySelectorAll('.settings-tab');
 
@@ -373,21 +286,16 @@ export function initSettings() {
     }
   });
 
-  // Clone modal close button
-  cloneModalCloseBtn?.addEventListener('click', closeCloneModal);
-
-  // Clone modal backdrop click
-  cloneOverlay?.addEventListener('click', (e) => {
-    if (e.target === cloneOverlay) {
-      closeCloneModal();
-    }
-  });
-
-  // Close on Escape - close clone modal first, then settings modal
+  // Close on Escape - close modals first, then dropdown, then settings
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      if (cloneModalOpen) {
+      if (isCloneModalOpen()) {
         closeCloneModal();
+      } else if (isCreateModalOpen()) {
+        closeCreateModal();
+      } else if (addRepoDropdown?.classList.contains('active')) {
+        addRepoDropdown.classList.remove('active');
+        addRepoMenu?.classList.add('hidden');
       } else if (isOpen) {
         closeSettings();
       }
@@ -410,113 +318,58 @@ export function initSettings() {
     });
   });
 
-  // Add local folder
-  addLocalBtn?.addEventListener('click', async () => {
-    const { vault, error } = await addLocalVault();
-    if (error) {
-      alert(error);
-    } else if (vault && currentSettings) {
+  // Add repo dropdown toggle
+  addRepoBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isActive = addRepoDropdown?.classList.toggle('active');
+    addRepoMenu?.classList.toggle('hidden', !isActive);
+  });
+
+  // Close dropdown on outside click
+  document.addEventListener('click', (e) => {
+    if (addRepoDropdown?.classList.contains('active')) {
+      if (!addRepoDropdown.contains(e.target as Node)) {
+        addRepoDropdown.classList.remove('active');
+        addRepoMenu?.classList.add('hidden');
+      }
+    }
+  });
+
+  // Dropdown menu actions
+  addRepoMenu?.querySelectorAll('.dropdown-item').forEach(item => {
+    item.addEventListener('click', async () => {
+      const action = item.getAttribute('data-action');
+
+      // Close dropdown
+      addRepoDropdown?.classList.remove('active');
+      addRepoMenu.classList.add('hidden');
+
+      if (action === 'local') {
+        const { vault, error } = await addLocalVault();
+        if (error) {
+          alert(error);
+        } else if (vault && currentSettings) {
+          currentSettings.vaults.push(vault);
+          await renderVaultList();
+        }
+      } else if (action === 'clone') {
+        openCloneModal();
+      } else if (action === 'create') {
+        openCreateModal();
+      }
+    });
+  });
+
+  // Initialize shared modals
+  const onVaultAdded = async (vault: Vault) => {
+    if (currentSettings) {
       currentSettings.vaults.push(vault);
       await renderVaultList();
     }
-  });
+  };
 
-  // Clone repository - open modal
-  cloneRepoBtn?.addEventListener('click', () => {
-    openCloneModal();
-  });
-
-  // Clone cancel
-  cloneCancelBtn?.addEventListener('click', () => {
-    closeCloneModal();
-  });
-
-  // Clone URL input - update path suggestion
-  let urlDebounceTimer: number;
-  cloneUrlInput?.addEventListener('input', () => {
-    hideCloneError();
-    updateCloneButton();
-
-    clearTimeout(urlDebounceTimer);
-    urlDebounceTimer = window.setTimeout(async () => {
-      const url = cloneUrlInput.value.trim();
-      if (isValidSshUrl(url)) {
-        try {
-          const path = await getDefaultClonePath(url);
-          if (clonePathInput) clonePathInput.value = path;
-        } catch (e) {
-          // Ignore - user can set path manually
-        }
-      }
-    }, 300);
-  });
-
-  // Clone browse button
-  cloneBrowseBtn?.addEventListener('click', async () => {
-    const { open } = await import('@tauri-apps/plugin-dialog');
-    const selected = await open({
-      directory: true,
-      title: 'Select clone destination',
-    });
-    if (selected && clonePathInput) {
-      clonePathInput.value = selected as string;
-    }
-  });
-
-  // Clone submit
-  cloneSubmitBtn?.addEventListener('click', async () => {
-    const url = cloneUrlInput?.value.trim();
-    const path = clonePathInput?.value.trim();
-
-    if (!url || !path) return;
-
-    hideCloneError();
-
-    // Check path status
-    try {
-      const status = await checkClonePath(url, path);
-
-      if (status === 'DifferentRemote') {
-        showCloneError('Folder contains a different repository. Choose another location.');
-        return;
-      }
-
-      if (status === 'NotEmpty') {
-        showCloneError("Folder exists but isn't empty. Choose another location.");
-        return;
-      }
-
-      if (status === 'SameRemote') {
-        // Already cloned - just add it via backend
-        // Note: add_existing_vault command will be added in Task 6
-        try {
-          const added = await invoke<Vault>('add_existing_vault', { path });
-          if (currentSettings) {
-            currentSettings.vaults.push(added);
-            await renderVaultList();
-          }
-          closeCloneModal();
-        } catch (e) {
-          showCloneError(e as string);
-        }
-        return;
-      }
-
-      // Clone it
-      showCloneProgress();
-      const vault = await cloneVault(url, path);
-
-      if (currentSettings) {
-        currentSettings.vaults.push(vault);
-        await renderVaultList();
-      }
-
-      closeCloneModal();
-    } catch (error) {
-      hideCloneProgress();
-      showCloneError(error as string);
-    }
-  });
+  initCloneModal(onVaultAdded);
+  initCreateModal(onVaultAdded);
 
   // Git mode change
   gitModeOptions.forEach(opt => {
