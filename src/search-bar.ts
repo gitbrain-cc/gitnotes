@@ -30,8 +30,8 @@ const MAX_RECENT_SEARCHES = 5;
 const MIN_CONTENT_SEARCH_LENGTH = 3;
 
 // LocalStorage keys
-const RECENT_FILES_KEY = 'noteone_recent_files';
-const RECENT_SEARCHES_KEY = 'noteone_recent_searches';
+const RECENT_FILES_KEY = 'gitnotes_recent_files';
+const RECENT_SEARCHES_KEY = 'gitnotes_recent_searches';
 
 export async function loadAllNotes(): Promise<void> {
   allNotes = await invoke('list_all_notes');

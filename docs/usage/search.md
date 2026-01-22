@@ -1,6 +1,6 @@
 # Search
 
-NoteOne includes unified search for quickly finding files and content across all your notes.
+GitNotes includes unified search for quickly finding files and content across all your notes.
 
 ## Opening Search
 
@@ -45,5 +45,5 @@ These persist across sessions.
 
 - **Case-insensitive** - "magento" finds "Magento" and "MAGENTO"
 - **Searches all sections** - No way to limit to current section (yet)
-- **Index location** - `~/.config/noteone/search-index/`
+- **Index location** - `~/.config/gitnotes/search-index/`
 - **Auto-updates** - Index refreshes automatically when files change

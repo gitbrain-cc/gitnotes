@@ -285,8 +285,8 @@ If a file matches both filename AND content, show only in "Files" group (not dup
 
 ## Data Persistence
 
-- Recent files: localStorage `noteone_recent_files` (max 7)
-- Recent searches: localStorage `noteone_recent_searches` (max 5)
+- Recent files: localStorage `gitnotes_recent_files` (max 7)
+- Recent searches: localStorage `gitnotes_recent_searches` (max 5)
 - Updated on file open / search selection
 
 ---

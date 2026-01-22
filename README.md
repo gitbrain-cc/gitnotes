@@ -1,66 +1,55 @@
-# NoteOne
+# GitNotes
 
-Lightweight markdown notes app. OneNote replacement built with Tauri.
-
-## Status
-
-**v0.1** - First working build (2026-01-12)
+Lightweight markdown notes app for developers. Git-native OneNote replacement built with Tauri.
 
 ## Features
 
-- Two-panel sidebar (sections/pages) like OneNote
-- Markdown editor with CodeMirror 6
-- Auto-save (500ms debounce)
-- Custom ordering via `.order.json` files
-- Dark mode (follows system)
+- **Two-panel sidebar** - Sections and notes, like OneNote
+- **Live markdown preview** - Inline rendering of headers, bold, links, code
+- **Full-text search** - Tantivy-powered instant search (Cmd+P)
+- **Git integration** - Visual git status, commit history, diffs
+- **Multi-vault support** - Switch between multiple note repositories
+- **Smart commits** - Auto-commit with configurable intervals
+- **6 themes** - System, Original, Yellow Pad, Classic Light/Dark, True Dark
 
 ## Stack
 
 - **Shell:** Tauri 2.0 (Rust)
 - **Frontend:** Vanilla TypeScript
 - **Editor:** CodeMirror 6
+- **Search:** Tantivy
 
 ## Development
 
 ```bash
-# Install dependencies
 npm install
-
-# Run dev mode
-npm run tauri dev
-
-# Build release
-npm run tauri build
+npm run tauri dev    # Dev mode
+npm run tauri build  # Release build
 ```
+
+## Keyboard Shortcuts
+
+| Action | Shortcut |
+|--------|----------|
+| Search | Cmd+P |
+| Settings | Cmd+, |
+| New note | Cmd+N |
+| Save | Cmd+S |
 
 ## Configuration
 
+Settings stored in `~/Library/Application Support/gitnotes/settings.json`
+
 ### Section ordering
 
-Create `notes/.order.json`:
-```json
-{
-  "sections": ["1-weeks", "1-todo", "gf-roadmap"],
-  "defaultSort": "name-asc"
-}
+Create `.section.md` in any section folder:
+```yaml
+---
+displayName: My Section
+color: "#f59e0b"
+---
 ```
 
-### Page ordering per section
+### Note ordering
 
-Create `notes/<section>/.order.json`:
-```json
-{
-  "sort": "name-desc",
-  "pinned": ["important.md"]
-}
-```
-
-Sort options: `name-asc`, `name-desc`, `created-asc`, `created-desc`, `modified-desc`, `manual`
-
-## TODO
-
-- [ ] Quick switcher (Cmd+P)
-- [ ] Full-text search (Cmd+Shift+F)
-- [ ] Inline markdown rendering (headers, bold, links)
-- [ ] Keyboard shortcuts
-- [ ] Create/delete pages
+Sort options available per section: Alphabetical, Date Created, Date Modified

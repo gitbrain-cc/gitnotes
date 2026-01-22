@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * OneNote to Markdown importer for NoteOne.
+ * OneNote to Markdown importer for GitNotes.
  *
  * Converts OneNote exports (.docx) to individual markdown files,
  * preserving page structure and creation dates.
  *
  * Usage:
- *   noteone-import-onenote --input ./exports --output ./notes
+ *   gitnotes-import-onenote --input ./exports --output ./notes
  */
 
 import { readdir, mkdir, writeFile, utimes, stat } from 'fs/promises';
@@ -56,10 +56,10 @@ function parseArgs(): Args {
 
 function printHelp(): void {
   console.log(`
-OneNote to Markdown Importer for NoteOne
+OneNote to Markdown Importer for GitNotes
 
 USAGE:
-  noteone-import-onenote --input <dir> --output <dir>
+  gitnotes-import-onenote --input <dir> --output <dir>
 
 OPTIONS:
   -i, --input <dir>   Directory containing .docx files exported from OneNote
@@ -67,7 +67,7 @@ OPTIONS:
   -h, --help          Show this help message
 
 EXAMPLE:
-  noteone-import-onenote --input ~/Downloads/onenote-export --output ~/notes
+  gitnotes-import-onenote --input ~/Downloads/onenote-export --output ~/notes
 
 NOTES:
   To export from OneNote:

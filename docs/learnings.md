@@ -1,4 +1,4 @@
-# NoteOne Learnings
+# GitNotes Learnings
 
 ## Tauri/Rust Patterns
 

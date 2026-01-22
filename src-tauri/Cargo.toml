@@ -1,12 +1,12 @@
 [package]
-name = "noteone"
+name = "gitnotes"
 version = "0.1.0"
 description = "Lightweight markdown notes app"
 authors = ["Simon Ortet"]
 edition = "2021"
 
 [lib]
-name = "noteone_lib"
+name = "gitnotes_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]

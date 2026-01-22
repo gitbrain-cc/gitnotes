@@ -1,6 +1,6 @@
 # Editor
 
-NoteOne uses a markdown editor with live preview.
+GitNotes uses a markdown editor with live preview.
 
 ## Live Preview
 

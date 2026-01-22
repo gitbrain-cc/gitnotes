@@ -2,7 +2,7 @@
 
 ## Overview
 
-First-run experience to set up NoteOne with a notes repository.
+First-run experience to set up GitNotes with a notes repository.
 
 ## Flow
 
@@ -28,7 +28,7 @@ First-run experience to set up NoteOne with a notes repository.
 
 ## Technical
 
-- [x] Config file support (`~/Library/Application Support/noteone/settings.json`)
+- [x] Config file support (`~/Library/Application Support/gitnotes/settings.json`)
 - [x] Store vaults for quick switching
 - [x] Onboarding trigger: `settings.vaults.length === 0`
 

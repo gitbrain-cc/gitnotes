@@ -1,6 +1,6 @@
 # Getting Started
 
-NoteOne is a lightweight markdown notes app. Your notes are plain files in a git-tracked directory.
+GitNotes is a lightweight markdown notes app. Your notes are plain files in a git-tracked directory.
 
 ## Layout
 

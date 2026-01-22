@@ -162,7 +162,7 @@ pub struct Settings {
 fn get_settings_path() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| dirs::home_dir().unwrap_or_default())
-        .join("noteone")
+        .join("gitnotes")
         .join("settings.json")
 }
 
@@ -420,7 +420,7 @@ fn get_notes_path() -> PathBuf {
         Some(p) => PathBuf::from(p),
         None => dirs::home_dir()
             .unwrap_or_default()
-            .join("tetronomis/dotfiles/notes")
+            .join("Documents/Notes")
     }
 }
 
@@ -2094,7 +2094,7 @@ pub fn run() {
     // Initialize search index
     let index_path = dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("noteone")
+        .join("gitnotes")
         .join("search-index");
 
     let search_index = Arc::new(

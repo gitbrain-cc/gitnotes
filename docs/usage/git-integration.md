@@ -1,6 +1,6 @@
 # Git Integration
 
-NoteOne tracks your notes directory as a git repository, showing commit history and sync status at a glance.
+GitNotes tracks your notes directory as a git repository, showing commit history and sync status at a glance.
 
 ## Git Status Box
 

@@ -1,6 +1,6 @@
-# OneNote Importer for NoteOne
+# OneNote Importer for GitNotes
 
-Import your OneNote notes to NoteOne by converting `.docx` exports to markdown files.
+Import your OneNote notes to GitNotes by converting `.docx` exports to markdown files.
 
 ## Features
 

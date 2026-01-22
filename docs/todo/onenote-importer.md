@@ -29,7 +29,7 @@ See `docs/section-metadata-support.md` for full design.
 
 ### Modified Date
 
-NoteOne now supports `modified` in frontmatter. Could extract from:
+GitNotes now supports `modified` in frontmatter. Could extract from:
 - docx metadata?
 - OneNote doesn't seem to include "last modified" in text export
 

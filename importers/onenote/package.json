@@ -1,9 +1,9 @@
 {
-  "name": "noteone-import-onenote",
+  "name": "gitnotes-import-onenote",
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "noteone-import-onenote": "./dist/index.js"
+    "gitnotes-import-onenote": "./dist/index.js"
   },
   "scripts": {
     "dev": "npx tsx src/index.ts",

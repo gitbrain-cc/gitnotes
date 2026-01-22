@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitNotes - Git-native markdown notes</title>
+  <meta name="description" content="Git-native markdown notes for developers who think in plain text. Your AI can read your notes.">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%);
+      color: #fff;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Hero Section */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tagline {
+      font-size: 1.125rem;
+      color: #888;
+      margin-bottom: 0.5rem;
+      font-weight: 400;
+    }
+
+    .headline {
+      font-size: 4.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 2rem;
+      background: linear-gradient(135deg, #fff 0%, #ccc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .cta-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #f59e0b;
+      color: #000;
+      font-size: 1.125rem;
+      font-weight: 600;
+      padding: 1rem 2rem;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 24px rgba(245, 158, 11, 0.3);
+    }
+
+    .cta-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 32px rgba(245, 158, 11, 0.4);
+    }
+
+    .cta-button svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .version {
+      font-size: 0.875rem;
+      color: #555;
+      margin-top: 1rem;
+    }
+
+    .version a {
+      color: #666;
+      text-decoration: none;
+    }
+
+    .version a:hover {
+      color: #f59e0b;
+    }
+
+    /* Screenshot */
+    .screenshot-container {
+      margin-top: 4rem;
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+      perspective: 1000px;
+    }
+
+    .screenshot-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%;
+      height: 80%;
+      background: radial-gradient(ellipse, rgba(245, 158, 11, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .screenshot {
+      width: 100%;
+      border-radius: 12px;
+      transform: rotateX(10deg) rotateY(-5deg);
+      box-shadow:
+        0 50px 100px -20px rgba(0, 0, 0, 0.8),
+        0 30px 60px -30px rgba(0, 0, 0, 0.6);
+      transition: transform 0.4s ease;
+      position: relative;
+      z-index: 1;
+    }
+
+    .screenshot:hover {
+      transform: rotateX(5deg) rotateY(-2deg);
+    }
+
+    /* Features Section */
+    .features {
+      padding: 6rem 2rem;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 3rem;
+    }
+
+    @media (max-width: 640px) {
+      .features-grid {
+        grid-template-columns: 1fr;
+        gap: 2.5rem;
+      }
+    }
+
+    .feature {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .feature-icon {
+      width: 40px;
+      height: 40px;
+      color: #f59e0b;
+    }
+
+    .feature-headline {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .feature-description {
+      font-size: 1rem;
+      color: #888;
+      line-height: 1.6;
+    }
+
+    /* Footer */
+    footer {
+      padding: 3rem 2rem;
+      border-top: 1px solid #222;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1000px;
+      margin: 0 auto;
+      font-size: 0.875rem;
+      color: #555;
+    }
+
+    @media (max-width: 640px) {
+      footer {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+      }
+    }
+
+    footer a {
+      color: #888;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    footer a:hover {
+      color: #f59e0b;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .headline {
+        font-size: 3rem;
+      }
+
+      .tagline {
+        font-size: 1rem;
+      }
+
+      .screenshot-container {
+        margin-top: 3rem;
+      }
+
+      .screenshot {
+        transform: rotateX(8deg) rotateY(-3deg);
+      }
+    }
+  </style>
+</head>
+<body>
+  <section class="hero">
+    <p class="tagline">Git-native markdown notes for developers who think in plain text</p>
+    <h1 class="headline">GitNotes</h1>
+    <a href="https://github.com/simonortet/gitnotes/releases/latest" class="cta-button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      Download for Mac
+    </a>
+    <p class="version">v0.1.0 · macOS · <a href="https://github.com/simonortet/gitnotes">Open Source</a></p>
+
+    <div class="screenshot-container">
+      <div class="screenshot-glow"></div>
+      <img src="screenshot.png" alt="GitNotes app screenshot" class="screenshot">
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="features-grid">
+      <div class="feature">
+        <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+          <path d="M7 8h4"></path>
+          <path d="M7 12h10"></path>
+          <path d="M7 16h6"></path>
+          <circle cx="17" cy="8" r="2"></circle>
+        </svg>
+        <h3 class="feature-headline">Your AI can read your notes</h3>
+        <p class="feature-description">Plain markdown in git. Claude Code, Cursor, any agent has full access to search, read, and update your notes.</p>
+      </div>
+
+      <div class="feature">
+        <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="18" r="3"></circle>
+          <circle cx="6" cy="6" r="3"></circle>
+          <path d="M13 6h3a2 2 0 0 1 2 2v7"></path>
+          <line x1="6" y1="9" x2="6" y2="21"></line>
+        </svg>
+        <h3 class="feature-headline">History without thinking</h3>
+        <p class="feature-description">Auto-commits, visual diffs, branch support. Notes that time-travel. Never lose a thought again.</p>
+      </div>
+
+      <div class="feature">
+        <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <h3 class="feature-headline">Find anything instantly</h3>
+        <p class="feature-description">Full-text search across all notes. Hit Cmd+P and go. Powered by Tantivy for sub-millisecond results.</p>
+      </div>
+
+      <div class="feature">
+        <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+        <h3 class="feature-headline">Just files, forever</h3>
+        <p class="feature-description">Markdown files in folders. Open with any editor, sync with any git host. Your notes belong to you.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>GitNotes · MIT License</div>
+    <div class="footer-links">
+      <a href="https://github.com/simonortet/gitnotes">GitHub</a>
+      <a href="https://github.com/simonortet/gitnotes/releases">Releases</a>
+      <a href="https://github.com/simonortet">@simonortet</a>
+    </div>
+  </footer>
+</body>
+</html>

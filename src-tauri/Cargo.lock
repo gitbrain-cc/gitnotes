@@ -1172,6 +1172,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "gitnotes"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "dirs 5.0.1",
+ "notify",
+ "notify-debouncer-mini",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tantivy",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-shell",
+ "trash",
+ "walkdir",
+]
+
+[[package]]
 name = "glib"
 version = "0.18.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2132,26 +2152,6 @@ checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
 dependencies = [
  "memchr",
  "minimal-lexical",
-]
-
-[[package]]
-name = "noteone"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "dirs 5.0.1",
- "notify",
- "notify-debouncer-mini",
- "serde",
- "serde_json",
- "serde_yaml",
- "tantivy",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-shell",
- "trash",
- "walkdir",
 ]
 
 [[package]]

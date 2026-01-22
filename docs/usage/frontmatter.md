@@ -1,6 +1,6 @@
 # Page Frontmatter
 
-NoteOne uses YAML frontmatter at the top of markdown files to store page metadata.
+GitNotes uses YAML frontmatter at the top of markdown files to store page metadata.
 
 ## Format
 
@@ -35,7 +35,7 @@ Timestamps use ISO 8601 format without timezone:
 2025-01-15T10:30:00
 ```
 
-NoteOne stores local time, not UTC.
+GitNotes stores local time, not UTC.
 
 ## Sorting
 

@@ -1,4 +1,4 @@
-# NoteOne Competitors
+# GitNotes Competitors
 
 Quick reference for competitive analysis.
 
@@ -39,4 +39,4 @@ tags: [tag1, tag2]
 - **From Notion**: Export to markdown, frontmatter included
 - **From Bear/Ulysses**: Export to markdown, may need to add frontmatter
 - **From Logseq**: Convert property syntax to YAML
-- **From OneNote**: No good export path (main NoteOne motivation)
+- **From OneNote**: No good export path (main GitNotes motivation)
