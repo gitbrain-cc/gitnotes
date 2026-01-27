@@ -37,4 +37,4 @@ First-run experience to set up GitNotes with a notes repository.
 - [x] Vault switcher in Settings UI
 - [x] Add/remove vaults
 - [x] Each vault = independent git repo
-- [ ] Vault switcher in main UI (top-left dropdown?)
+- [x] Vault switcher in main UI (top-left dropdown?)

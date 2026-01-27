@@ -4,7 +4,7 @@ import { initEditor, getContent, focusEditor, getWordCount, updateHeaderData, lo
 import { initSearchBar, openSearchBar, loadAllNotes, closeSearchBar, isSearchBarOpen, addRecentFile } from './search-bar';
 import { parseFrontMatter, serializeFrontMatter, FrontMatter } from './frontmatter';
 import { initGitStatus, refreshGitStatus } from './git-status';
-import { initSettings, getGitMode, getCommitInterval, isSettingsOpen, closeSettings, getTheme, applyTheme } from './settings';
+import { initSettings, getGitMode, getCommitInterval, isSettingsOpen, closeSettings, getTheme, applyTheme, getEditorSettings, applyEditorSettings } from './settings';
 import { initGitView, isGitModeOpen, exitGitMode } from './git-view';
 import { checkOnboarding, initOnboarding, showOnboarding } from './onboarding';
 import { checkForUpdates } from './updater';
@@ -380,9 +380,11 @@ function setupKeyboardShortcuts() {
 
 async function init() {
   try {
-    // Apply theme immediately to prevent flash
+    // Apply theme and editor settings immediately to prevent flash
     const theme = await getTheme();
     applyTheme(theme);
+    const editorSettings = await getEditorSettings();
+    applyEditorSettings(editorSettings);
 
     // Check if onboarding is needed (no vaults configured)
     if (await checkOnboarding()) {

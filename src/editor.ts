@@ -1,14 +1,19 @@
-import { EditorView, keymap, ViewPlugin, ViewUpdate, Decoration, DecorationSet, WidgetType } from '@codemirror/view';
-import { EditorState } from '@codemirror/state';
+import { EditorView, keymap, ViewPlugin, ViewUpdate, Decoration, DecorationSet, WidgetType, lineNumbers as lineNumbersExt } from '@codemirror/view';
+import { EditorState, Compartment } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
+import { syntaxHighlighting, defaultHighlightStyle, indentUnit } from '@codemirror/language';
 import { scheduleSave } from './main';
 import { FrontMatter, parseFrontMatter, serializeFrontMatter } from './frontmatter';
 import { livePreview } from './editor/live-preview';
 
 let editorView: EditorView | null = null;
 let currentFrontMatter: FrontMatter = {};
+
+// Compartments for runtime reconfiguration
+const lineNumbersCompartment = new Compartment();
+const lineWrappingCompartment = new Compartment();
+const tabSizeCompartment = new Compartment();
 
 // Header data that will be displayed
 export interface HeaderData {
@@ -20,10 +25,10 @@ export interface HeaderData {
 const theme = EditorView.theme({
   '&': {
     height: '100%',
-    fontSize: '13px',
+    fontSize: '0.929rem',
   },
   '.cm-scroller': {
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontFamily: 'var(--font-family-base)',
     lineHeight: '1.7',
     letterSpacing: '0.01em',
   },
@@ -144,11 +149,53 @@ export function initEditor() {
         selectionBrackets,
         livePreview,
         updateListener,
-        EditorView.lineWrapping,
+        lineNumbersCompartment.of([]),
+        lineWrappingCompartment.of(EditorView.lineWrapping),
+        tabSizeCompartment.of([indentUnit.of('  '), EditorState.tabSize.of(2)]),
       ],
     }),
     parent: container,
   });
+
+  // Listen for settings changes
+  window.addEventListener('editor-settings-changed', ((e: CustomEvent) => {
+    reconfigureEditor(e.detail);
+  }) as EventListener);
+}
+
+interface EditorSettingsForReconfigure {
+  line_numbers: boolean;
+  line_wrapping: boolean;
+  tab_size: number;
+  use_tabs: boolean;
+}
+
+export function reconfigureEditor(settings: EditorSettingsForReconfigure): void {
+  if (!editorView) return;
+
+  const effects = [];
+
+  effects.push(
+    lineNumbersCompartment.reconfigure(
+      settings.line_numbers ? lineNumbersExt() : []
+    )
+  );
+
+  effects.push(
+    lineWrappingCompartment.reconfigure(
+      settings.line_wrapping ? EditorView.lineWrapping : []
+    )
+  );
+
+  const indent = settings.use_tabs ? '\t' : ' '.repeat(settings.tab_size);
+  effects.push(
+    tabSizeCompartment.reconfigure([
+      indentUnit.of(indent),
+      EditorState.tabSize.of(settings.tab_size),
+    ])
+  );
+
+  editorView.dispatch({ effects });
 }
 
 export function loadContent(content: string) {

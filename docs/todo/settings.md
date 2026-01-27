@@ -15,11 +15,11 @@
 
 ## Editor
 
-- [ ] Font size adjustment
-- [ ] Font family selection
-- [ ] Line numbers toggle
-- [ ] Line wrapping preference
-- [ ] Tab size / spaces vs tabs
+- [x] Font size adjustment (app-wide text scaling with rem)
+- [x] Font family selection (system, mono, serif)
+- [x] Line numbers toggle
+- [x] Line wrapping preference
+- [x] Tab size / spaces vs tabs
 
 ## Git
 

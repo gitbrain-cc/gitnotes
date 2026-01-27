@@ -130,6 +130,7 @@
         <nav class="settings-nav">
           <button class="settings-tab active" data-tab="repositories">Repositories</button>
           <button class="settings-tab" data-tab="git">Git</button>
+          <button class="settings-tab" data-tab="editor">Editor</button>
           <button class="settings-tab" data-tab="appearance">Appearance</button>
         </nav>
         <div class="settings-panels">
@@ -183,6 +184,60 @@
                 <span class="interval-unit">minutes</span>
               </div>
               <p class="settings-hint">Commits after this much inactivity or when switching files</p>
+            </div>
+          </div>
+          <div id="panel-editor" class="settings-panel">
+            <label class="settings-label">Text size</label>
+            <div class="text-size-control">
+              <input type="range" id="font-size-slider" min="10" max="20" value="14">
+              <span id="font-size-value">14px</span>
+            </div>
+
+            <label class="settings-label">Font</label>
+            <div id="font-family-options" class="font-options">
+              <div class="font-option active" data-font="system">
+                <div class="font-radio"></div>
+                <div class="font-info">
+                  <div class="font-name">System</div>
+                  <div class="font-preview" style="font-family: -apple-system, BlinkMacSystemFont, sans-serif">The quick brown fox</div>
+                </div>
+              </div>
+              <div class="font-option" data-font="mono">
+                <div class="font-radio"></div>
+                <div class="font-info">
+                  <div class="font-name">Monospace</div>
+                  <div class="font-preview" style="font-family: ui-monospace, 'SF Mono', Menlo, monospace">The quick brown fox</div>
+                </div>
+              </div>
+              <div class="font-option" data-font="serif">
+                <div class="font-radio"></div>
+                <div class="font-info">
+                  <div class="font-name">Serif</div>
+                  <div class="font-preview" style="font-family: Georgia, 'Times New Roman', serif">The quick brown fox</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="editor-toggles">
+              <label class="toggle-row">
+                <input type="checkbox" id="line-numbers-toggle">
+                <span>Show line numbers</span>
+              </label>
+              <label class="toggle-row">
+                <input type="checkbox" id="line-wrapping-toggle" checked>
+                <span>Wrap lines</span>
+              </label>
+              <label class="toggle-row">
+                <input type="checkbox" id="use-tabs-toggle">
+                <span>Indent with tabs</span>
+              </label>
+            </div>
+
+            <label class="settings-label">Tab size</label>
+            <div id="tab-size-options" class="tab-size-options">
+              <button class="tab-size-btn active" data-size="2">2</button>
+              <button class="tab-size-btn" data-size="4">4</button>
+              <button class="tab-size-btn" data-size="8">8</button>
             </div>
           </div>
           <div id="panel-appearance" class="settings-panel">

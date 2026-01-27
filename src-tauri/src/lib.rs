@@ -149,6 +149,42 @@ impl Default for AppearanceSettings {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EditorSettings {
+    #[serde(default = "default_font_size")]
+    pub font_size: u8,
+    #[serde(default = "default_font_family")]
+    pub font_family: String,
+    #[serde(default = "default_line_numbers")]
+    pub line_numbers: bool,
+    #[serde(default = "default_line_wrapping")]
+    pub line_wrapping: bool,
+    #[serde(default = "default_tab_size")]
+    pub tab_size: u8,
+    #[serde(default = "default_use_tabs")]
+    pub use_tabs: bool,
+}
+
+fn default_font_size() -> u8 { 14 }
+fn default_font_family() -> String { "system".to_string() }
+fn default_line_numbers() -> bool { false }
+fn default_line_wrapping() -> bool { true }
+fn default_tab_size() -> u8 { 2 }
+fn default_use_tabs() -> bool { false }
+
+impl Default for EditorSettings {
+    fn default() -> Self {
+        EditorSettings {
+            font_size: default_font_size(),
+            font_family: default_font_family(),
+            line_numbers: default_line_numbers(),
+            line_wrapping: default_line_wrapping(),
+            tab_size: default_tab_size(),
+            use_tabs: default_use_tabs(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Settings {
     pub vaults: Vec<Vault>,
     #[serde(default)]
@@ -157,6 +193,8 @@ pub struct Settings {
     pub git: GitSettings,
     #[serde(default)]
     pub appearance: AppearanceSettings,
+    #[serde(default)]
+    pub editor: EditorSettings,
 }
 
 fn get_settings_path() -> PathBuf {
@@ -181,6 +219,7 @@ fn load_settings() -> Settings {
         active_vault: None,
         git: GitSettings::default(),
         appearance: AppearanceSettings::default(),
+        editor: EditorSettings::default(),
     }
 }
 
@@ -1988,6 +2027,18 @@ fn set_theme(theme: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn get_editor_settings() -> EditorSettings {
+    load_settings().editor
+}
+
+#[tauri::command]
+fn set_editor_settings(settings: EditorSettings) -> Result<(), String> {
+    let mut current = load_settings();
+    current.editor = settings;
+    save_settings(&current)
+}
+
+#[tauri::command]
 fn get_repo_stats() -> Result<RepoStats, String> {
     let notes_path = get_notes_path();
 
@@ -2341,6 +2392,8 @@ pub fn run() {
             set_commit_interval,
             get_theme,
             set_theme,
+            get_editor_settings,
+            set_editor_settings,
             check_clone_path,
             clone_vault,
             get_default_clone_path,

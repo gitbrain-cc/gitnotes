@@ -33,6 +33,15 @@ interface GitSettings {
   commit_interval: number;
 }
 
+interface EditorSettings {
+  font_size: number;
+  font_family: string;
+  line_numbers: boolean;
+  line_wrapping: boolean;
+  tab_size: number;
+  use_tabs: boolean;
+}
+
 interface Settings {
   vaults: Vault[];
   active_vault: string | null;
@@ -70,12 +79,38 @@ export async function setTheme(theme: string): Promise<void> {
   return await invoke('set_theme', { theme });
 }
 
+export async function getEditorSettings(): Promise<EditorSettings> {
+  return await invoke('get_editor_settings');
+}
+
+export async function setEditorSettings(settings: EditorSettings): Promise<void> {
+  return await invoke('set_editor_settings', { settings });
+}
+
 export function applyTheme(theme: string): void {
   if (theme === 'system') {
     document.documentElement.removeAttribute('data-theme');
   } else {
     document.documentElement.setAttribute('data-theme', theme);
   }
+}
+
+const FONT_STACKS: Record<string, string> = {
+  system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  mono: 'ui-monospace, "SF Mono", Menlo, Monaco, monospace',
+  serif: 'Georgia, "Times New Roman", serif',
+};
+
+export function applyEditorSettings(settings: EditorSettings): void {
+  document.documentElement.style.setProperty(
+    '--base-font-size',
+    `${settings.font_size}px`
+  );
+  document.documentElement.style.setProperty(
+    '--font-family-base',
+    FONT_STACKS[settings.font_family] || FONT_STACKS.system
+  );
+  window.dispatchEvent(new CustomEvent('editor-settings-changed', { detail: settings }));
 }
 
 async function addLocalVault(): Promise<{ vault: Vault | null; error: string | null }> {
@@ -407,6 +442,115 @@ export function initSettings() {
         applyTheme(theme);
         themeOptions.forEach(o => o.classList.remove('active'));
         opt.classList.add('active');
+      }
+    });
+  });
+
+  // Editor settings
+  const fontSizeSlider = document.getElementById('font-size-slider') as HTMLInputElement;
+  const fontSizeValue = document.getElementById('font-size-value');
+  const fontOptions = document.querySelectorAll('.font-option');
+  const lineNumbersToggle = document.getElementById('line-numbers-toggle') as HTMLInputElement;
+  const lineWrappingToggle = document.getElementById('line-wrapping-toggle') as HTMLInputElement;
+  const useTabsToggle = document.getElementById('use-tabs-toggle') as HTMLInputElement;
+  const tabSizeBtns = document.querySelectorAll('.tab-size-btn');
+
+  let editorSettings: EditorSettings = {
+    font_size: 14,
+    font_family: 'system',
+    line_numbers: false,
+    line_wrapping: true,
+    tab_size: 2,
+    use_tabs: false,
+  };
+
+  // Load and apply editor settings on init
+  getEditorSettings().then((settings) => {
+    editorSettings = settings;
+    applyEditorSettings(settings);
+
+    // Update UI to match loaded settings
+    if (fontSizeSlider) {
+      fontSizeSlider.value = String(settings.font_size);
+    }
+    if (fontSizeValue) {
+      fontSizeValue.textContent = `${settings.font_size}px`;
+    }
+    fontOptions.forEach(opt => {
+      const font = opt.getAttribute('data-font');
+      opt.classList.toggle('active', font === settings.font_family);
+    });
+    if (lineNumbersToggle) {
+      lineNumbersToggle.checked = settings.line_numbers;
+    }
+    if (lineWrappingToggle) {
+      lineWrappingToggle.checked = settings.line_wrapping;
+    }
+    if (useTabsToggle) {
+      useTabsToggle.checked = settings.use_tabs;
+    }
+    tabSizeBtns.forEach(btn => {
+      const size = btn.getAttribute('data-size');
+      btn.classList.toggle('active', size === String(settings.tab_size));
+    });
+  });
+
+  // Font size slider
+  fontSizeSlider?.addEventListener('input', async () => {
+    const size = parseInt(fontSizeSlider.value, 10);
+    if (fontSizeValue) {
+      fontSizeValue.textContent = `${size}px`;
+    }
+    editorSettings.font_size = size;
+    applyEditorSettings(editorSettings);
+    await setEditorSettings(editorSettings);
+  });
+
+  // Font family options
+  fontOptions.forEach(opt => {
+    opt.addEventListener('click', async () => {
+      const font = opt.getAttribute('data-font');
+      if (font) {
+        fontOptions.forEach(o => o.classList.remove('active'));
+        opt.classList.add('active');
+        editorSettings.font_family = font;
+        applyEditorSettings(editorSettings);
+        await setEditorSettings(editorSettings);
+      }
+    });
+  });
+
+  // Line numbers toggle
+  lineNumbersToggle?.addEventListener('change', async () => {
+    editorSettings.line_numbers = lineNumbersToggle.checked;
+    applyEditorSettings(editorSettings);
+    await setEditorSettings(editorSettings);
+  });
+
+  // Line wrapping toggle
+  lineWrappingToggle?.addEventListener('change', async () => {
+    editorSettings.line_wrapping = lineWrappingToggle.checked;
+    applyEditorSettings(editorSettings);
+    await setEditorSettings(editorSettings);
+  });
+
+  // Use tabs toggle
+  useTabsToggle?.addEventListener('change', async () => {
+    editorSettings.use_tabs = useTabsToggle.checked;
+    applyEditorSettings(editorSettings);
+    await setEditorSettings(editorSettings);
+  });
+
+  // Tab size buttons
+  tabSizeBtns.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const size = btn.getAttribute('data-size');
+      if (size) {
+        tabSizeBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        editorSettings.tab_size = parseInt(size, 10);
+        applyEditorSettings(editorSettings);
+        await setEditorSettings(editorSettings);
       }
     });
   });

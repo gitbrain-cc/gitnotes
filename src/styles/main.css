@@ -6,6 +6,10 @@
 
 /* Base light theme (used by System mode in light OS) */
 :root {
+  /* Text scaling - base for rem calculations */
+  --base-font-size: 14px;
+  --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
   --bg-primary: #ffffff;
   --bg-secondary: #f5f5f5;
   --bg-tertiary: #e8e8e8;
@@ -85,9 +89,13 @@ html[data-theme="true-dark"] {
   --accent-color: #f08030;
 }
 
+html {
+  font-size: var(--base-font-size, 14px);
+}
+
 html, body {
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-family-base);
   background: var(--bg-primary);
   color: var(--text-primary);
   overflow: hidden;
@@ -121,7 +129,7 @@ body {
   height: 48px;
   padding: 0 16px;
   box-sizing: border-box;
-  font-size: 11px;
+  font-size: 0.786rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -140,7 +148,7 @@ body {
 .sidebar li {
   padding: 10px 16px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 0.929rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -193,7 +201,7 @@ body {
   background: transparent;
   border: none;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 0.929rem;
   text-align: left;
   cursor: pointer;
   border-radius: 4px;
@@ -223,14 +231,14 @@ body {
 }
 
 #note-header h1 {
-  font-size: 28px;
+  font-size: 2rem;
   font-weight: 600;
   margin: 0 0 4px 0;
   color: var(--text-primary);
 }
 
 #note-header .meta {
-  font-size: 12px;
+  font-size: 0.857rem;
   color: var(--text-secondary);
 }
 
@@ -256,7 +264,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 0.786rem;
   color: var(--text-secondary);
   flex-shrink: 0;
 }
@@ -357,7 +365,7 @@ body.git-view-active #search-container {
 #search-input {
   width: 100%;
   padding: 10px 16px;
-  font-size: 13px;
+  font-size: 0.929rem;
   border: 1px solid var(--border-color);
   border-radius: 20px;
   background: var(--bg-primary);
@@ -399,7 +407,7 @@ body.git-view-active #search-container {
 
 .search-section-header {
   padding: 4px 12px 8px;
-  font-size: 11px;
+  font-size: 0.786rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -436,21 +444,21 @@ body.git-view-active #search-container {
 }
 
 .result-section {
-  font-size: 12px;
+  font-size: 0.857rem;
   color: var(--text-secondary);
   flex-shrink: 0;
   min-width: 70px;
 }
 
 .result-filename {
-  font-size: 13px;
+  font-size: 0.929rem;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .result-snippet {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 0.857rem;
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -467,7 +475,7 @@ body.git-view-active #search-container {
 
 .results-group-header {
   padding: 10px 12px 4px !important;
-  font-size: 10px;
+  font-size: 0.714rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -488,7 +496,7 @@ body.git-view-active #search-container {
 .recent-search-item {
   display: flex;
   align-items: center;
-  font-size: 13px;
+  font-size: 0.929rem;
 }
 
 .search-icon {
@@ -512,7 +520,7 @@ body.git-view-active #search-container {
 .context-menu-item {
   padding: 8px 16px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 0.929rem;
   color: var(--text-primary);
 }
 
@@ -557,7 +565,7 @@ body.git-view-active #search-container {
 .inline-rename {
   width: 100%;
   padding: 2px 4px;
-  font-size: 13px;
+  font-size: 0.929rem;
   background: var(--bg-primary);
   border: 1px solid var(--accent-color);
   color: var(--text-primary);
@@ -604,7 +612,7 @@ body.git-view-active #search-container {
 }
 
 .git-repo-name {
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -622,7 +630,7 @@ body.git-view-active #search-container {
 
 .git-last-commit {
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 0.786rem;
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -642,7 +650,7 @@ body.git-view-active #search-container {
   gap: 4px;
   min-width: 55px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.786rem;
 }
 
 .stat-add {
@@ -655,7 +663,7 @@ body.git-view-active #search-container {
 
 .commit-message {
   flex: 1;
-  font-size: 12px;
+  font-size: 0.857rem;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -664,7 +672,7 @@ body.git-view-active #search-container {
 
 .commit-meta {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: 0.714rem;
   color: var(--text-secondary);
 }
 
@@ -711,7 +719,7 @@ body.git-view-active #search-container {
 
 .sort-option {
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 0.929rem;
   font-weight: 400;
   text-transform: none;
   letter-spacing: 0;
@@ -732,7 +740,7 @@ body.git-view-active #search-container {
 }
 
 .sort-arrow {
-  font-size: 12px;
+  font-size: 0.857rem;
   opacity: 0.8;
 }
 
@@ -778,7 +786,7 @@ body.git-view-active #search-container {
   border: 1px solid var(--border-color);
   border-radius: 4px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 0.857rem;
   cursor: pointer;
 }
 
@@ -826,7 +834,7 @@ body.git-view-active #search-container {
 
 .settings-header h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 1.143rem;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -834,7 +842,7 @@ body.git-view-active #search-container {
 .modal-close {
   background: none;
   border: none;
-  font-size: 24px;
+  font-size: 1.714rem;
   color: var(--text-secondary);
   cursor: pointer;
   padding: 0;
@@ -867,7 +875,7 @@ body.git-view-active #search-container {
   color: var(--text-secondary);
   cursor: pointer;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 0.929rem;
 }
 
 .settings-tab:hover {
@@ -965,7 +973,7 @@ body.git-view-active #search-container {
 }
 
 .vault-name {
-  font-size: 13px;
+  font-size: 0.929rem;
   color: var(--text-primary);
   font-weight: 500;
 }
@@ -977,7 +985,7 @@ body.git-view-active #search-container {
 }
 
 .vault-path {
-  font-size: 11px;
+  font-size: 0.786rem;
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -989,7 +997,7 @@ body.git-view-active #search-container {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: 0.714rem;
   color: var(--text-secondary);
   background: var(--bg-tertiary, rgba(255,255,255,0.05));
   padding: 2px 6px;
@@ -1005,7 +1013,7 @@ body.git-view-active #search-container {
   align-items: center;
   gap: 12px;
   margin-top: 6px;
-  font-size: 11px;
+  font-size: 0.786rem;
   color: var(--text-tertiary, var(--text-secondary));
 }
 
@@ -1049,7 +1057,7 @@ body.git-view-active #search-container {
   color: var(--text-secondary);
   cursor: pointer;
   width: 100%;
-  font-size: 13px;
+  font-size: 0.929rem;
 }
 
 .settings-action-btn:hover {
@@ -1060,7 +1068,7 @@ body.git-view-active #search-container {
 /* Git settings */
 .settings-label {
   display: block;
-  font-size: 13px;
+  font-size: 0.929rem;
   color: var(--text-primary);
   margin-bottom: 8px;
 }
@@ -1118,13 +1126,13 @@ body.git-view-active #search-container {
 }
 
 .git-mode-name {
-  font-size: 13px;
+  font-size: 0.929rem;
   color: var(--text-primary);
   font-weight: 500;
 }
 
 .git-mode-desc {
-  font-size: 11px;
+  font-size: 0.786rem;
   color: var(--text-secondary);
 }
 
@@ -1181,14 +1189,162 @@ body.git-view-active #search-container {
 }
 
 .theme-name {
-  font-size: 13px;
+  font-size: 0.929rem;
   color: var(--text-primary);
   font-weight: 500;
 }
 
 .theme-desc {
-  font-size: 11px;
+  font-size: 0.786rem;
   color: var(--text-secondary);
+}
+
+/* Editor settings */
+.text-size-control {
+  display: flex;
+  align-items: center;
+  gap: 0.857rem;
+  margin-bottom: 1.143rem;
+}
+
+.text-size-control input[type="range"] {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+  outline: none;
+}
+
+.text-size-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 1rem;
+  height: 1rem;
+  background: var(--accent-color);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+#font-size-value {
+  min-width: 3rem;
+  text-align: right;
+  color: var(--text-secondary);
+  font-size: 0.857rem;
+}
+
+.font-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.143rem;
+}
+
+.font-option {
+  display: flex;
+  align-items: center;
+  gap: 0.714rem;
+  padding: 0.571rem 0.714rem;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.font-option:hover {
+  background: var(--bg-tertiary);
+}
+
+.font-option.active {
+  background: var(--bg-tertiary);
+}
+
+.font-option .font-radio {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--text-secondary);
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.font-option.active .font-radio {
+  border-color: var(--accent-color);
+}
+
+.font-option.active .font-radio::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--accent-color);
+  border-radius: 50%;
+}
+
+.font-info {
+  flex: 1;
+}
+
+.font-name {
+  font-size: 0.929rem;
+  margin-bottom: 0.214rem;
+}
+
+.font-preview {
+  font-size: 0.857rem;
+  color: var(--text-secondary);
+}
+
+.editor-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.714rem;
+  margin-bottom: 1.143rem;
+  padding: 0.857rem;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.714rem;
+  cursor: pointer;
+  font-size: 0.929rem;
+}
+
+.toggle-row input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent-color);
+}
+
+.tab-size-options {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tab-size-btn {
+  padding: 0.429rem 0.857rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.857rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tab-size-btn:hover {
+  background: var(--bg-tertiary);
+}
+
+.tab-size-btn.active {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: #fff;
 }
 
 /* Vault actions */
@@ -1210,7 +1366,7 @@ body.git-view-active #search-container {
   background: transparent;
   border: none;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 0.929rem;
   cursor: pointer;
 }
 
@@ -1248,7 +1404,7 @@ body.git-view-active #search-container {
   display: block;
   width: 100%;
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: 0.929rem;
   color: var(--text-primary);
   background: none;
   border: none;
@@ -1267,7 +1423,7 @@ body.git-view-active #search-container {
 
 .clone-field label {
   display: block;
-  font-size: 11px;
+  font-size: 0.786rem;
   color: var(--text-secondary);
   margin-bottom: 4px;
   text-transform: uppercase;
@@ -1281,7 +1437,7 @@ body.git-view-active #search-container {
   border: 1px solid var(--border-color, rgba(255,255,255,0.1));
   border-radius: 6px;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 0.929rem;
   font-family: inherit;
 }
 
@@ -1305,7 +1461,7 @@ body.git-view-active #search-container {
   border: 1px solid var(--border-color, rgba(255,255,255,0.1));
   border-radius: 6px;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 0.857rem;
   cursor: pointer;
 }
 
@@ -1315,7 +1471,7 @@ body.git-view-active #search-container {
 
 .clone-error {
   color: #ef4444;
-  font-size: 12px;
+  font-size: 0.857rem;
   margin-bottom: 12px;
   padding: 8px 10px;
   background: rgba(239, 68, 68, 0.1);
@@ -1335,7 +1491,7 @@ body.git-view-active #search-container {
 }
 
 .clone-progress span {
-  font-size: 12px;
+  font-size: 0.857rem;
   color: var(--text-secondary);
 }
 
@@ -1400,7 +1556,7 @@ body.git-view-active #search-container {
 
 .clone-modal-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 1.143rem;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -1433,7 +1589,7 @@ body.git-view-active #search-container {
 #commit-interval-input {
   width: 70px;
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 0.929rem;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -1454,13 +1610,13 @@ body.git-view-active #search-container {
 }
 
 .interval-unit {
-  font-size: 13px;
+  font-size: 0.929rem;
   color: var(--text-secondary);
 }
 
 #commit-interval-setting .settings-hint {
   margin-top: 10px;
-  font-size: 12px;
+  font-size: 0.857rem;
   color: var(--text-tertiary, var(--text-secondary));
   opacity: 0.7;
 }
@@ -1496,7 +1652,7 @@ body.git-view-active #search-container {
 
 .git-section-header {
   padding: 8px 16px;
-  font-size: 11px;
+  font-size: 0.786rem;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -1511,7 +1667,7 @@ body.git-view-active #search-container {
   color: var(--bg-primary);
   padding: 1px 6px;
   border-radius: 10px;
-  font-size: 10px;
+  font-size: 0.714rem;
 }
 
 #git-uncommitted-section.hidden,
@@ -1563,7 +1719,7 @@ body.git-view-active #search-container {
 }
 
 .git-file-status {
-  font-size: 11px;
+  font-size: 0.786rem;
   font-weight: 600;
   width: 16px;
   text-align: center;
@@ -1579,12 +1735,12 @@ body.git-view-active #search-container {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 0.929rem;
 }
 
 .commit-time {
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: 0.714rem;
   color: var(--text-secondary);
 }
 
@@ -1600,7 +1756,7 @@ body.git-view-active #search-container {
 #git-diff-header {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border-color);
-  font-size: 13px;
+  font-size: 0.929rem;
   font-weight: 500;
 }
 
@@ -1609,7 +1765,7 @@ body.git-view-active #search-container {
   overflow: auto;
   padding: 16px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 0.857rem;
   line-height: 1.5;
   white-space: pre-wrap;
 }
@@ -1637,7 +1793,7 @@ body.git-view-active #search-container {
   padding: 12px 0;
   margin-top: 24px;
   border-bottom: 1px solid var(--border-color);
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -1671,7 +1827,7 @@ body.git-view-active #search-container {
   border: 1px solid var(--border-color);
   border-radius: 4px;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 0.857rem;
   font-family: inherit;
 }
 
@@ -1690,7 +1846,7 @@ body.git-view-active #search-container {
   border: 1px solid var(--border-color);
   border-radius: 4px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 0.857rem;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -1735,21 +1891,21 @@ body.git-view-active #search-container {
 }
 
 .onboarding-step h1 {
-  font-size: 24px;
+  font-size: 1.714rem;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0 0 8px 0;
 }
 
 .onboarding-step h2 {
-  font-size: 18px;
+  font-size: 1.286rem;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0 0 24px 0;
 }
 
 .onboarding-tagline {
-  font-size: 14px;
+  font-size: 1rem;
   color: var(--text-secondary);
   margin: 0 0 32px 0;
   line-height: 1.5;
@@ -1759,7 +1915,7 @@ body.git-view-active #search-container {
 .onboarding-btn {
   padding: 12px 32px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
   border: 1px solid var(--border-color);
@@ -1830,14 +1986,14 @@ body.git-view-active #search-container {
 }
 
 .vault-option-name {
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 500;
   color: var(--text-primary);
   margin-bottom: 2px;
 }
 
 .vault-option-desc {
-  font-size: 12px;
+  font-size: 0.857rem;
   color: var(--text-secondary);
 }
 
@@ -1852,7 +2008,7 @@ body.git-view-active #search-container {
 
 .onboarding-field label {
   display: block;
-  font-size: 12px;
+  font-size: 0.857rem;
   color: var(--text-secondary);
   margin-bottom: 6px;
   text-transform: uppercase;
@@ -1866,7 +2022,7 @@ body.git-view-active #search-container {
   border: 1px solid var(--border-color);
   border-radius: 8px;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 1rem;
   font-family: inherit;
 }
 
@@ -1890,7 +2046,7 @@ body.git-view-active #search-container {
   border: 1px solid var(--border-color);
   border-radius: 8px;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 0.929rem;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -1901,7 +2057,7 @@ body.git-view-active #search-container {
 
 .onboarding-error {
   color: #ef4444;
-  font-size: 13px;
+  font-size: 0.929rem;
   margin-bottom: 16px;
   padding: 10px 12px;
   background: rgba(239, 68, 68, 0.1);
@@ -1914,7 +2070,7 @@ body.git-view-active #search-container {
 
 .onboarding-error-banner {
   color: #f87171;
-  font-size: 13px;
+  font-size: 0.929rem;
   margin-bottom: 20px;
   padding: 12px 16px;
   background: rgba(239, 68, 68, 0.1);
@@ -1925,7 +2081,7 @@ body.git-view-active #search-container {
 
 .onboarding-error-banner code {
   font-family: monospace;
-  font-size: 11px;
+  font-size: 0.786rem;
   background: rgba(0, 0, 0, 0.2);
   padding: 2px 6px;
   border-radius: 4px;
@@ -1953,7 +2109,7 @@ body.git-view-active #search-container {
   background: none;
   border: none;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 0.929rem;
   cursor: pointer;
   padding: 0;
   margin-bottom: 20px;
@@ -1976,7 +2132,7 @@ body.git-view-active #search-container {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  font-size: 13px;
+  font-size: 0.929rem;
   font-weight: 500;
   z-index: 9999;
 }
@@ -1985,7 +2141,7 @@ body.git-view-active #search-container {
   padding: 4px 12px;
   border-radius: 4px;
   border: none;
-  font-size: 12px;
+  font-size: 0.857rem;
   cursor: pointer;
 }
 
