@@ -6,7 +6,7 @@ use std::time::Duration;
 use tantivy::collector::TopDocs;
 use tantivy::query::QueryParser;
 use tantivy::schema::*;
-use tantivy::{Index, IndexReader, IndexWriter, TantivyDocument, ReloadPolicy};
+use tantivy::{Index, IndexReader, IndexWriter, ReloadPolicy, TantivyDocument};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SearchResult {
@@ -100,7 +100,8 @@ impl SearchIndex {
 
             if path.is_dir() {
                 // Skip hidden directories
-                if !path.file_name()
+                if !path
+                    .file_name()
                     .and_then(|n| n.to_str())
                     .map(|n| n.starts_with('.'))
                     .unwrap_or(false)
@@ -150,11 +151,10 @@ impl SearchIndex {
     pub fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>, String> {
         let searcher = self.reader.searcher();
 
-        let query_parser = QueryParser::for_index(&self.index, vec![self.filename_field, self.content_field]);
+        let query_parser =
+            QueryParser::for_index(&self.index, vec![self.filename_field, self.content_field]);
 
-        let parsed_query = query_parser
-            .parse_query(query)
-            .map_err(|e| e.to_string())?;
+        let parsed_query = query_parser.parse_query(query).map_err(|e| e.to_string())?;
 
         let top_docs = searcher
             .search(&parsed_query, &TopDocs::with_limit(limit))
@@ -294,8 +294,8 @@ impl SearchIndex {
         std::thread::spawn(move || {
             let (tx, rx) = std::sync::mpsc::channel();
 
-            let mut debouncer = new_debouncer(Duration::from_millis(500), tx)
-                .expect("Failed to create debouncer");
+            let mut debouncer =
+                new_debouncer(Duration::from_millis(500), tx).expect("Failed to create debouncer");
 
             debouncer
                 .watcher()

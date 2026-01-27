@@ -7,6 +7,7 @@ import { initGitStatus, refreshGitStatus } from './git-status';
 import { initSettings, getGitMode, getCommitInterval, isSettingsOpen, closeSettings, getTheme, applyTheme } from './settings';
 import { initGitView, isGitModeOpen, exitGitMode } from './git-view';
 import { checkOnboarding, initOnboarding, showOnboarding } from './onboarding';
+import { checkForUpdates } from './updater';
 
 interface Section {
   name: string;
@@ -399,6 +400,9 @@ async function init() {
     await initSidebar();
     await loadAllNotes();
     setStatus('Ready');
+
+    // Check for updates in background
+    checkForUpdates();
 
     // Smart commit on blur/close
     window.addEventListener('blur', () => {

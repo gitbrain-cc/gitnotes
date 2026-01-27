@@ -1,12 +1,12 @@
 mod search;
 
+use chrono::{DateTime, Datelike, Local, Utc};
+use search::{SearchIndex, SearchResult as TantivySearchResult};
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
-use serde::{Deserialize, Serialize};
-use chrono::{Datelike, Local, DateTime, Utc};
-use search::{SearchIndex, SearchResult as TantivySearchResult};
 
 const PROTECTED_SECTIONS: &[&str] = &["1-todo", "1-weeks"];
 
@@ -39,8 +39,8 @@ pub struct Note {
     pub name: String,
     pub path: String,
     pub filename: String,
-    pub created: u64,   // Unix timestamp
-    pub modified: u64,  // Unix timestamp
+    pub created: u64,  // Unix timestamp
+    pub modified: u64, // Unix timestamp
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -195,7 +195,9 @@ fn save_settings(settings: &Settings) -> Result<(), String> {
 
 fn generate_id() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let duration = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     format!("{:x}", duration.as_millis())
 }
 
@@ -240,7 +242,10 @@ fn parse_git_remote(url: &str) -> Option<(String, String)> {
 
     // HTTPS format: https://github.com/user/repo.git
     if url.starts_with("https://") || url.starts_with("http://") {
-        if let Some(rest) = url.strip_prefix("https://").or_else(|| url.strip_prefix("http://")) {
+        if let Some(rest) = url
+            .strip_prefix("https://")
+            .or_else(|| url.strip_prefix("http://"))
+        {
             let parts: Vec<&str> = rest.splitn(2, '/').collect();
             if parts.len() == 2 {
                 let provider = parts[0].to_string();
@@ -357,7 +362,11 @@ fn save_section_metadata(section_path: &PathBuf, metadata: &SectionMetadata) -> 
 }
 
 #[tauri::command]
-fn set_section_metadata(section_path: String, title: Option<String>, color: Option<String>) -> Result<(), String> {
+fn set_section_metadata(
+    section_path: String,
+    title: Option<String>,
+    color: Option<String>,
+) -> Result<(), String> {
     let path = PathBuf::from(&section_path);
     // Load existing metadata to preserve sort/pinned/order fields
     let mut metadata = load_section_metadata(&path);
@@ -411,16 +420,15 @@ fn get_notes_path() -> PathBuf {
     let settings = load_settings();
 
     // Find active vault, or use first vault, or fall back to default
-    let vault_path = settings.active_vault
+    let vault_path = settings
+        .active_vault
         .and_then(|id| settings.vaults.iter().find(|v| v.id == id))
         .or_else(|| settings.vaults.first())
         .map(|v| v.path.clone());
 
     match vault_path {
         Some(p) => PathBuf::from(p),
-        None => dirs::home_dir()
-            .unwrap_or_default()
-            .join("Documents/Notes")
+        None => dirs::home_dir().unwrap_or_default().join("Documents/Notes"),
     }
 }
 
@@ -516,8 +524,14 @@ fn list_sections() -> Result<Vec<Section>, String> {
     // Sort by .gitnotes sectionOrder or alphabetically
     if !gitnotes_config.section_order.is_empty() {
         sections.sort_by(|a, b| {
-            let a_idx = gitnotes_config.section_order.iter().position(|x| x == &a.name);
-            let b_idx = gitnotes_config.section_order.iter().position(|x| x == &b.name);
+            let a_idx = gitnotes_config
+                .section_order
+                .iter()
+                .position(|x| x == &a.name);
+            let b_idx = gitnotes_config
+                .section_order
+                .iter()
+                .position(|x| x == &b.name);
             match (a_idx, b_idx) {
                 (Some(ai), Some(bi)) => ai.cmp(&bi),
                 (Some(_), None) => std::cmp::Ordering::Less,
@@ -553,23 +567,34 @@ fn list_notes(section_path: String) -> Result<Vec<Note>, String> {
                 // Try frontmatter first, fall back to filesystem
                 let (created, modified) = if let Ok(content) = fs::read_to_string(&path) {
                     let (fm, _) = parse_frontmatter(&content);
-                    let fm_created = fm.as_ref().and_then(|f| f.created.as_ref()).map(|s| iso_to_timestamp(s));
-                    let fm_modified = fm.as_ref().and_then(|f| f.modified.as_ref()).map(|s| iso_to_timestamp(s));
+                    let fm_created = fm
+                        .as_ref()
+                        .and_then(|f| f.created.as_ref())
+                        .map(|s| iso_to_timestamp(s));
+                    let fm_modified = fm
+                        .as_ref()
+                        .and_then(|f| f.modified.as_ref())
+                        .map(|s| iso_to_timestamp(s));
 
                     // Fall back to filesystem if frontmatter missing
                     let metadata = fs::metadata(&path).ok();
-                    let fs_created = metadata.as_ref()
+                    let fs_created = metadata
+                        .as_ref()
                         .and_then(|m| m.created().ok())
                         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                         .map(|d| d.as_secs())
                         .unwrap_or(0);
-                    let fs_modified = metadata.as_ref()
+                    let fs_modified = metadata
+                        .as_ref()
                         .and_then(|m| m.modified().ok())
                         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                         .map(|d| d.as_secs())
                         .unwrap_or(0);
 
-                    (fm_created.unwrap_or(fs_created), fm_modified.unwrap_or(fs_modified))
+                    (
+                        fm_created.unwrap_or(fs_created),
+                        fm_modified.unwrap_or(fs_modified),
+                    )
                 } else {
                     (0, 0)
                 };
@@ -589,7 +614,9 @@ fn list_notes(section_path: String) -> Result<Vec<Note>, String> {
 
     // Sort by preference
     match section_meta.sort.as_str() {
-        "alpha-desc" | "name-desc" => notes.sort_by(|a, b| b.name.to_lowercase().cmp(&a.name.to_lowercase())),
+        "alpha-desc" | "name-desc" => {
+            notes.sort_by(|a, b| b.name.to_lowercase().cmp(&a.name.to_lowercase()))
+        }
         "created-asc" => notes.sort_by(|a, b| a.created.cmp(&b.created)),
         "created-desc" => notes.sort_by(|a, b| b.created.cmp(&a.created)),
         "modified-asc" => notes.sort_by(|a, b| a.modified.cmp(&b.modified)),
@@ -710,7 +737,8 @@ fn get_week_name() -> String {
 #[tauri::command]
 fn create_note_smart(section_path: String) -> Result<Note, String> {
     let path = PathBuf::from(&section_path);
-    let section_name = path.file_name()
+    let section_name = path
+        .file_name()
         .ok_or("Invalid path")?
         .to_string_lossy()
         .to_lowercase();
@@ -793,7 +821,8 @@ fn rename_note(old_path: String, new_name: String) -> Result<Note, String> {
 
     // Get timestamps before rename
     let metadata = fs::metadata(&old_file).ok();
-    let created = metadata.as_ref()
+    let created = metadata
+        .as_ref()
         .and_then(|m| m.created().ok())
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
         .map(|d| d.as_secs())
@@ -801,7 +830,8 @@ fn rename_note(old_path: String, new_name: String) -> Result<Note, String> {
 
     fs::rename(&old_file, &new_path).map_err(|e| e.to_string())?;
 
-    let modified = fs::metadata(&new_path).ok()
+    let modified = fs::metadata(&new_path)
+        .ok()
         .and_then(|m| m.modified().ok())
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
         .map(|d| d.as_secs())
@@ -824,7 +854,8 @@ fn move_note(path: String, new_section_path: String) -> Result<Note, String> {
         return Err("Note not found".to_string());
     }
 
-    let filename = old_file.file_name()
+    let filename = old_file
+        .file_name()
         .ok_or("Invalid filename")?
         .to_string_lossy()
         .to_string();
@@ -837,7 +868,8 @@ fn move_note(path: String, new_section_path: String) -> Result<Note, String> {
 
     // Get timestamps before move
     let metadata = fs::metadata(&old_file).ok();
-    let created = metadata.as_ref()
+    let created = metadata
+        .as_ref()
         .and_then(|m| m.created().ok())
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
         .map(|d| d.as_secs())
@@ -845,7 +877,8 @@ fn move_note(path: String, new_section_path: String) -> Result<Note, String> {
 
     fs::rename(&old_file, &new_path).map_err(|e| e.to_string())?;
 
-    let modified = fs::metadata(&new_path).ok()
+    let modified = fs::metadata(&new_path)
+        .ok()
         .and_then(|m| m.modified().ok())
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
         .map(|d| d.as_secs())
@@ -942,7 +975,8 @@ fn rename_section(path: String, new_name: String) -> Result<Section, String> {
         return Err("Section not found".to_string());
     }
 
-    let folder_name = section_path.file_name()
+    let folder_name = section_path
+        .file_name()
         .ok_or("Invalid path")?
         .to_string_lossy()
         .to_string();
@@ -975,7 +1009,8 @@ fn delete_section(path: String) -> Result<(), String> {
         return Err("Section not found".to_string());
     }
 
-    let name = dir_path.file_name()
+    let name = dir_path
+        .file_name()
         .ok_or("Invalid path")?
         .to_string_lossy()
         .to_lowercase();
@@ -1109,7 +1144,10 @@ fn get_git_info(path: String) -> Result<GitInfo, String> {
 }
 
 #[tauri::command]
-fn search_notes(query: String, state: tauri::State<AppState>) -> Result<Vec<TantivySearchResult>, String> {
+fn search_notes(
+    query: String,
+    state: tauri::State<AppState>,
+) -> Result<Vec<TantivySearchResult>, String> {
     if query.len() < 3 {
         // For short queries, return empty - frontend handles filename matching
         return Ok(vec![]);
@@ -1213,14 +1251,16 @@ fn get_repo_status() -> Result<RepoStatus, String> {
             if o.status.success() {
                 let url = String::from_utf8_lossy(&o.stdout).trim().to_string();
                 // Extract repo name from URL (e.g., "repo.git" -> "repo")
-                url.split('/').last()
+                url.split('/')
+                    .last()
                     .map(|s| s.trim_end_matches(".git").to_string())
             } else {
                 None
             }
         })
         .unwrap_or_else(|| {
-            notes_path.file_name()
+            notes_path
+                .file_name()
                 .map(|s| s.to_string_lossy().to_string())
                 .unwrap_or_else(|| "notes".to_string())
         });
@@ -1281,23 +1321,24 @@ fn get_repo_status() -> Result<RepoStatus, String> {
         .current_dir(&notes_path)
         .output();
 
-    let (last_commit_hash, last_commit_message, last_commit_date, last_commit_author) = match log_output {
-        Ok(output) if output.status.success() => {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let parts: Vec<&str> = stdout.trim().split('|').collect();
-            if parts.len() == 4 {
-                (
-                    Some(parts[0].chars().take(7).collect()), // Short hash (safe)
-                    Some(parts[1].to_string()),
-                    Some(parts[2].to_string()),
-                    Some(parts[3].to_string()),
-                )
-            } else {
-                (None, None, None, None)
+    let (last_commit_hash, last_commit_message, last_commit_date, last_commit_author) =
+        match log_output {
+            Ok(output) if output.status.success() => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let parts: Vec<&str> = stdout.trim().split('|').collect();
+                if parts.len() == 4 {
+                    (
+                        Some(parts[0].chars().take(7).collect()), // Short hash (safe)
+                        Some(parts[1].to_string()),
+                        Some(parts[2].to_string()),
+                        Some(parts[3].to_string()),
+                    )
+                } else {
+                    (None, None, None, None)
+                }
             }
-        }
-        _ => (None, None, None, None),
-    };
+            _ => (None, None, None, None),
+        };
 
     Ok(RepoStatus {
         repo_name,
@@ -1344,7 +1385,8 @@ fn get_dirty_files() -> Result<Vec<DirtyFile>, String> {
         .ok();
 
     // Build a map of path -> (insertions, deletions)
-    let mut stats_map: std::collections::HashMap<String, (u32, u32)> = std::collections::HashMap::new();
+    let mut stats_map: std::collections::HashMap<String, (u32, u32)> =
+        std::collections::HashMap::new();
     if let Some(output) = numstat_output {
         if output.status.success() {
             for line in String::from_utf8_lossy(&output.stdout).lines() {
@@ -1368,9 +1410,19 @@ fn get_dirty_files() -> Result<Vec<DirtyFile>, String> {
             let path = line[3..].to_string();
             // Handle paths ending with / (directories) - trim and get last non-empty segment
             let trimmed_path = path.trim_end_matches('/');
-            let filename = trimmed_path.split('/').last().unwrap_or(trimmed_path).to_string();
+            let filename = trimmed_path
+                .split('/')
+                .last()
+                .unwrap_or(trimmed_path)
+                .to_string();
             let (insertions, deletions) = stats_map.get(trimmed_path).copied().unwrap_or((0, 0));
-            Some(DirtyFile { path, filename, status, insertions, deletions })
+            Some(DirtyFile {
+                path,
+                filename,
+                status,
+                insertions,
+                deletions,
+            })
         })
         .collect();
 
@@ -1384,9 +1436,7 @@ fn get_vault_path() -> String {
 
 #[tauri::command]
 fn get_file_diff(path: String, vault_path: Option<String>) -> Result<String, String> {
-    let notes_path = vault_path
-        .map(PathBuf::from)
-        .unwrap_or_else(get_notes_path);
+    let notes_path = vault_path.map(PathBuf::from).unwrap_or_else(get_notes_path);
 
     // Try diff against HEAD (modified files)
     let output = Command::new("git")
@@ -1429,7 +1479,11 @@ fn get_file_diff(path: String, vault_path: Option<String>) -> Result<String, Str
             if let Ok(entries) = std::fs::read_dir(&file_path) {
                 for entry in entries.flatten() {
                     if let Some(name) = entry.file_name().to_str() {
-                        let file_type = if entry.path().is_dir() { "folder" } else { "file" };
+                        let file_type = if entry.path().is_dir() {
+                            "folder"
+                        } else {
+                            "file"
+                        };
                         files.push(format!("+  {} ({})", name, file_type));
                     }
                 }
@@ -1439,7 +1493,11 @@ fn get_file_diff(path: String, vault_path: Option<String>) -> Result<String, Str
             return Ok(format!(
                 "New folder: {}\n\nContents:\n{}",
                 dir_name,
-                if files.is_empty() { "+  (empty)".to_string() } else { files.join("\n") }
+                if files.is_empty() {
+                    "+  (empty)".to_string()
+                } else {
+                    files.join("\n")
+                }
             ));
         }
     }
@@ -1632,7 +1690,8 @@ fn validate_active_vault() -> VaultValidation {
     }
 
     // Find active vault or use first
-    let active_vault = settings.active_vault
+    let active_vault = settings
+        .active_vault
         .and_then(|id| settings.vaults.iter().find(|v| v.id == id))
         .or_else(|| settings.vaults.first());
 
@@ -1642,9 +1701,21 @@ fn validate_active_vault() -> VaultValidation {
             VaultValidation {
                 has_vaults: true,
                 active_vault_valid: path_exists,
-                invalid_vault_id: if path_exists { None } else { Some(vault.id.clone()) },
-                invalid_vault_path: if path_exists { None } else { Some(vault.path.clone()) },
-                invalid_vault_name: if path_exists { None } else { Some(vault.name.clone()) },
+                invalid_vault_id: if path_exists {
+                    None
+                } else {
+                    Some(vault.id.clone())
+                },
+                invalid_vault_path: if path_exists {
+                    None
+                } else {
+                    Some(vault.path.clone())
+                },
+                invalid_vault_name: if path_exists {
+                    None
+                } else {
+                    Some(vault.name.clone())
+                },
             }
         }
         None => VaultValidation {
@@ -1665,7 +1736,9 @@ fn update_settings(settings: Settings) -> Result<(), String> {
 #[tauri::command]
 fn get_vault_stats(vault_id: String) -> Result<VaultStats, String> {
     let settings = load_settings();
-    let vault = settings.vaults.iter()
+    let vault = settings
+        .vaults
+        .iter()
         .find(|v| v.id == vault_id)
         .ok_or_else(|| "Vault not found".to_string())?;
 
@@ -1744,13 +1817,15 @@ fn get_vault_stats(vault_id: String) -> Result<VaultStats, String> {
         // Get branch
         let head_path = git_path.join("HEAD");
         let branch = fs::read_to_string(&head_path).ok().and_then(|content| {
-            content.strip_prefix("ref: refs/heads/")
+            content
+                .strip_prefix("ref: refs/heads/")
                 .map(|s| s.trim().to_string())
         });
 
         // Get remote URL from config
         let config_path = git_path.join("config");
-        let (provider, repo) = fs::read_to_string(&config_path).ok()
+        let (provider, repo) = fs::read_to_string(&config_path)
+            .ok()
             .and_then(|content| {
                 // Find [remote "origin"] section and extract url
                 let mut in_origin = false;
@@ -1798,7 +1873,10 @@ async fn add_vault(app: tauri::AppHandle) -> Result<Option<Vault>, String> {
 
             // Validate it's a git repository
             if !is_git_repository(&path_str) {
-                return Err("Not a git repository. Please select a folder with git initialized.".to_string());
+                return Err(
+                    "Not a git repository. Please select a folder with git initialized."
+                        .to_string(),
+                );
             }
 
             let name = std::path::Path::new(&path_str)
@@ -1819,7 +1897,7 @@ async fn add_vault(app: tauri::AppHandle) -> Result<Option<Vault>, String> {
 
             Ok(Some(vault))
         }
-        None => Ok(None)
+        None => Ok(None),
     }
 }
 
@@ -1937,7 +2015,13 @@ fn get_repo_stats() -> Result<RepoStats, String> {
         .output()
         .ok()
         .filter(|o| o.status.success())
-        .map(|o| String::from_utf8_lossy(&o.stdout).lines().next().unwrap_or("").to_string())
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .next()
+                .unwrap_or("")
+                .to_string()
+        })
         .filter(|s| !s.is_empty());
 
     let first_commit_date = root_commit.and_then(|hash| {
@@ -2010,7 +2094,10 @@ fn check_clone_path(url: String, path: String) -> Result<ClonePathStatus, String
     let git_dir = path.join(".git");
     if !git_dir.exists() {
         // Folder exists but not a git repo - check if empty
-        if std::fs::read_dir(path).map(|mut d| d.next().is_none()).unwrap_or(false) {
+        if std::fs::read_dir(path)
+            .map(|mut d| d.next().is_none())
+            .unwrap_or(false)
+        {
             return Ok(ClonePathStatus::Empty);
         }
         return Ok(ClonePathStatus::NotEmpty);
@@ -2030,7 +2117,12 @@ fn check_clone_path(url: String, path: String) -> Result<ClonePathStatus, String
     let existing_remote = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
     // Normalize URLs for comparison (remove .git suffix, trailing slashes)
-    let normalize = |u: &str| u.trim().trim_end_matches('/').trim_end_matches(".git").to_string();
+    let normalize = |u: &str| {
+        u.trim()
+            .trim_end_matches('/')
+            .trim_end_matches(".git")
+            .to_string()
+    };
 
     if normalize(&existing_remote) == normalize(&url) {
         Ok(ClonePathStatus::SameRemote)
@@ -2088,7 +2180,8 @@ async fn create_vault(path: String, name: String) -> Result<Vault, String> {
 
     // Create directory if not exists
     if !vault_path.exists() {
-        fs::create_dir_all(&vault_path).map_err(|e| format!("Failed to create directory: {}", e))?;
+        fs::create_dir_all(&vault_path)
+            .map_err(|e| format!("Failed to create directory: {}", e))?;
     }
 
     // Check if already a git repo
@@ -2147,19 +2240,17 @@ pub fn run() {
         .join("search-index");
 
     let search_index = Arc::new(
-        SearchIndex::new(&index_path, &notes_path)
-            .expect("Failed to create search index")
+        SearchIndex::new(&index_path, &notes_path).expect("Failed to create search index"),
     );
 
     // Start file watcher
     SearchIndex::start_watcher(Arc::clone(&search_index), notes_path.clone())
         .expect("Failed to start file watcher");
 
-    let app_state = AppState {
-        search_index,
-    };
+    let app_state = AppState { search_index };
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {

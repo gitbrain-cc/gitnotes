@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build and sign
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run tauri build
+
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Generate latest.json
+        run: |
+          # Find the generated files
+          BUNDLE_DIR="src-tauri/target/release/bundle/macos"
+          TAR_GZ=$(ls ${BUNDLE_DIR}/*.tar.gz 2>/dev/null | head -1)
+          SIG=$(ls ${BUNDLE_DIR}/*.tar.gz.sig 2>/dev/null | head -1)
+
+          if [ -z "$TAR_GZ" ] || [ -z "$SIG" ]; then
+            echo "Error: Could not find .tar.gz or .sig files"
+            ls -la ${BUNDLE_DIR}/
+            exit 1
+          fi
+
+          TAR_GZ_NAME=$(basename "$TAR_GZ")
+          SIGNATURE=$(cat "$SIG")
+          VERSION="${{ steps.version.outputs.version }}"
+
+          cat > latest.json << EOF
+          {
+            "version": "${VERSION}",
+            "notes": "See release notes on GitHub",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "darwin-aarch64": {
+                "signature": "${SIGNATURE}",
+                "url": "https://github.com/tetronomis/gitnotes/releases/download/v${VERSION}/${TAR_GZ_NAME}"
+              },
+              "darwin-x86_64": {
+                "signature": "${SIGNATURE}",
+                "url": "https://github.com/tetronomis/gitnotes/releases/download/v${VERSION}/${TAR_GZ_NAME}"
+              }
+            }
+          }
+          EOF
+
+          cat latest.json
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitNotes-macOS
+          path: |
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/macos/*.tar.gz
+            latest.json
+
+  release:
+    needs: build-macos
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: List artifacts
+        run: find . -type f
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            GitNotes-macOS/*.dmg
+            GitNotes-macOS/*.tar.gz
+            GitNotes-macOS/latest.json
+          draft: true
+          generate_release_notes: true
