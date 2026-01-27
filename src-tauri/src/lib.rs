@@ -1608,6 +1608,55 @@ fn get_settings() -> Settings {
     load_settings()
 }
 
+#[derive(Debug, Serialize)]
+pub struct VaultValidation {
+    pub has_vaults: bool,
+    pub active_vault_valid: bool,
+    pub invalid_vault_id: Option<String>,
+    pub invalid_vault_path: Option<String>,
+    pub invalid_vault_name: Option<String>,
+}
+
+#[tauri::command]
+fn validate_active_vault() -> VaultValidation {
+    let settings = load_settings();
+
+    if settings.vaults.is_empty() {
+        return VaultValidation {
+            has_vaults: false,
+            active_vault_valid: false,
+            invalid_vault_id: None,
+            invalid_vault_path: None,
+            invalid_vault_name: None,
+        };
+    }
+
+    // Find active vault or use first
+    let active_vault = settings.active_vault
+        .and_then(|id| settings.vaults.iter().find(|v| v.id == id))
+        .or_else(|| settings.vaults.first());
+
+    match active_vault {
+        Some(vault) => {
+            let path_exists = Path::new(&vault.path).exists();
+            VaultValidation {
+                has_vaults: true,
+                active_vault_valid: path_exists,
+                invalid_vault_id: if path_exists { None } else { Some(vault.id.clone()) },
+                invalid_vault_path: if path_exists { None } else { Some(vault.path.clone()) },
+                invalid_vault_name: if path_exists { None } else { Some(vault.name.clone()) },
+            }
+        }
+        None => VaultValidation {
+            has_vaults: true,
+            active_vault_valid: false,
+            invalid_vault_id: None,
+            invalid_vault_path: None,
+            invalid_vault_name: None,
+        },
+    }
+}
+
 #[tauri::command]
 fn update_settings(settings: Settings) -> Result<(), String> {
     save_settings(&settings)
@@ -2122,7 +2171,7 @@ pub fn run() {
                 .accelerator("CmdOrCtrl+,")
                 .build(app)?;
 
-            let app_submenu = SubmenuBuilder::new(app, "Git Notes")
+            let app_submenu = SubmenuBuilder::new(app, "GitNotes")
                 .item(&settings_item)
                 .separator()
                 .quit()
@@ -2189,6 +2238,7 @@ pub fn run() {
             save_section_order,
             get_settings,
             update_settings,
+            validate_active_vault,
             get_vault_stats,
             add_vault,
             remove_vault,

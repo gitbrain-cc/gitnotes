@@ -272,7 +272,7 @@ export function initSettings() {
   const gitModeOptions = document.querySelectorAll('.git-mode-option');
   const tabs = document.querySelectorAll('.settings-tab');
 
-  // Listen for menu event (Cmd+, or Git Notes > Settings)
+  // Listen for menu event (Cmd+, or GitNotes > Settings)
   listen('open-settings', () => {
     openSettings();
   });
