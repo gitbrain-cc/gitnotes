@@ -31,18 +31,30 @@ const theme = EditorView.theme({
     caretColor: 'var(--text-primary)',
     padding: '16px',
   },
-  // Markdown styling
+  // Markdown styling - headings
   '.cm-header-1': {
-    fontSize: '1.8em',
-    fontWeight: 'bold',
+    fontSize: '1.6em',
+    fontWeight: '600',
+    textDecoration: 'none',
+    color: 'var(--text-primary)',
   },
   '.cm-header-2': {
-    fontSize: '1.5em',
-    fontWeight: 'bold',
+    fontSize: '1.35em',
+    fontWeight: '600',
+    textDecoration: 'none',
+    color: 'var(--text-primary)',
   },
   '.cm-header-3': {
-    fontSize: '1.25em',
-    fontWeight: 'bold',
+    fontSize: '1.15em',
+    fontWeight: '600',
+    textDecoration: 'none',
+    color: 'var(--text-primary)',
+  },
+  '.cm-header-4, .cm-header-5, .cm-header-6': {
+    fontSize: '1em',
+    fontWeight: '600',
+    textDecoration: 'none',
+    color: 'var(--text-primary)',
   },
   '.cm-strong': {
     fontWeight: 'bold',

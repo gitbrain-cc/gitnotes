@@ -4,26 +4,12 @@ import {
   ViewUpdate,
   Decoration,
   DecorationSet,
-  WidgetType,
 } from '@codemirror/view';
 import { syntaxTree } from '@codemirror/language';
 import { RangeSetBuilder } from '@codemirror/state';
 
-// Markers to hide completely (bold/italic/code syntax)
-const HIDDEN_MARKERS = new Set(['EmphasisMark', 'CodeMark']);
-
-// Widget that preserves space for hidden header marks
-class HeaderSpacer extends WidgetType {
-  constructor(readonly width: number) {
-    super();
-  }
-  toDOM() {
-    const span = document.createElement('span');
-    span.style.width = `${this.width}ch`;
-    span.style.display = 'inline-block';
-    return span;
-  }
-}
+// Markers to hide completely (bold/italic/code syntax and header marks)
+const HIDDEN_MARKERS = new Set(['EmphasisMark', 'CodeMark', 'HeaderMark']);
 
 function buildDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
@@ -38,14 +24,14 @@ function buildDecorations(view: EditorView): DecorationSet {
         if (line === cursorLine) return;
 
         if (HIDDEN_MARKERS.has(node.name)) {
-          builder.add(node.from, node.to, Decoration.replace({}));
-        } else if (node.name === 'HeaderMark') {
-          const len = node.to - node.from;
-          builder.add(
-            node.from,
-            node.to,
-            Decoration.replace({ widget: new HeaderSpacer(len) })
-          );
+          // For header marks, also hide the trailing space
+          if (node.name === 'HeaderMark') {
+            const nextChar = view.state.doc.sliceString(node.to, node.to + 1);
+            const hideEnd = nextChar === ' ' ? node.to + 1 : node.to;
+            builder.add(node.from, hideEnd, Decoration.replace({}));
+          } else {
+            builder.add(node.from, node.to, Decoration.replace({}));
+          }
         }
       },
     });

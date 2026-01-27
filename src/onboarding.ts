@@ -14,15 +14,57 @@ interface Vault {
   path: string;
 }
 
-// Check if onboarding is needed (no vaults configured)
+interface VaultValidation {
+  has_vaults: boolean;
+  active_vault_valid: boolean;
+  invalid_vault_id: string | null;
+  invalid_vault_path: string | null;
+  invalid_vault_name: string | null;
+}
+
+let invalidVaultInfo: { id: string; name: string; path: string } | null = null;
+
+// Check if onboarding is needed (no vaults configured or active vault path missing)
 export async function checkOnboarding(): Promise<boolean> {
-  const settings = await getSettings();
-  return settings.vaults.length === 0;
+  const validation = await invoke<VaultValidation>('validate_active_vault');
+
+  if (!validation.has_vaults) {
+    return true;
+  }
+
+  if (!validation.active_vault_valid) {
+    // Vault exists in settings but path is missing
+    if (validation.invalid_vault_id && validation.invalid_vault_name && validation.invalid_vault_path) {
+      invalidVaultInfo = {
+        id: validation.invalid_vault_id,
+        name: validation.invalid_vault_name,
+        path: validation.invalid_vault_path,
+      };
+    }
+    return true;
+  }
+
+  return false;
 }
 
 export function showOnboarding(): void {
   const overlay = document.getElementById('onboarding-overlay');
   overlay?.classList.remove('hidden');
+
+  // If vault path was missing, skip welcome and go straight to setup
+  if (invalidVaultInfo) {
+    showStep('setup');
+
+    const errorBanner = document.getElementById('onboarding-error');
+    if (errorBanner) {
+      errorBanner.innerHTML = `
+        <strong>Repository not found:</strong> "${invalidVaultInfo.name}"
+        <code title="${invalidVaultInfo.path}">${invalidVaultInfo.path}</code>
+        Please select or create a new repository.
+      `;
+      errorBanner.classList.remove('hidden');
+    }
+  }
 }
 
 function hideOnboarding(): void {
@@ -56,6 +98,15 @@ async function getDefaultVaultPath(name: string): Promise<string> {
 }
 
 async function completeOnboarding(): Promise<void> {
+  // Remove the invalid vault from settings before reloading
+  if (invalidVaultInfo) {
+    try {
+      await invoke('remove_vault', { vaultId: invalidVaultInfo.id });
+    } catch {
+      // Ignore errors - the vault might already be gone
+    }
+  }
+
   hideOnboarding();
   // Note: closeCloneModal() is called by the shared modal after success
   window.location.reload();

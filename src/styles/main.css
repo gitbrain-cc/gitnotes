@@ -1912,6 +1912,34 @@ body.git-view-active #search-container {
   display: none;
 }
 
+.onboarding-error-banner {
+  color: #f87171;
+  font-size: 13px;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  line-height: 1.5;
+}
+
+.onboarding-error-banner code {
+  font-family: monospace;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.onboarding-error-banner.hidden {
+  display: none;
+}
+
 .onboarding-form .onboarding-btn {
   width: 100%;
   margin-top: 8px;

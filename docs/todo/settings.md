@@ -56,3 +56,7 @@
 - [ ] Local backup location
 - [ ] Backup frequency
 - [ ] Export all notes (zip)
+
+## Weekly Notes
+
+- [ ] Sunday week placement: beginning (default) or end of week
