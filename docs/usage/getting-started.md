@@ -45,7 +45,7 @@ Full markdown support with live preview. Formatting renders inline while you typ
 ## Files
 
 Notes are stored as plain markdown:
-- `~/tetronomis/dotfiles/notes/` (default location)
+- `~/Documents/notes/` (example location)
 - Each section is a folder
 - Each page is a `.md` file
 

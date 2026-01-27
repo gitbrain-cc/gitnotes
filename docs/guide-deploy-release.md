@@ -62,7 +62,7 @@ This triggers the GitHub Actions workflow.
 
 ### 6. Monitor Build
 
-Go to: `https://github.com/tetronomis/gitnotes/actions`
+Go to: `https://github.com/gitbrain-cc/gitnotes/actions`
 
 Watch the "Release" workflow. It will:
 1. Build macOS app
@@ -72,7 +72,7 @@ Watch the "Release" workflow. It will:
 
 ### 7. Review Draft Release
 
-Go to: `https://github.com/tetronomis/gitnotes/releases`
+Go to: `https://github.com/gitbrain-cc/gitnotes/releases`
 
 The draft release will have:
 - `GitNotes_0.2.0_aarch64.dmg` - installer for users

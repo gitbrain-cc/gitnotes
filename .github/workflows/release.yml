@@ -57,11 +57,11 @@ jobs:
             "platforms": {
               "darwin-aarch64": {
                 "signature": "${SIGNATURE}",
-                "url": "https://github.com/tetronomis/gitnotes/releases/download/v${VERSION}/${TAR_GZ_NAME}"
+                "url": "https://github.com/gitbrain-cc/gitnotes/releases/download/v${VERSION}/${TAR_GZ_NAME}"
               },
               "darwin-x86_64": {
                 "signature": "${SIGNATURE}",
-                "url": "https://github.com/tetronomis/gitnotes/releases/download/v${VERSION}/${TAR_GZ_NAME}"
+                "url": "https://github.com/gitbrain-cc/gitnotes/releases/download/v${VERSION}/${TAR_GZ_NAME}"
               }
             }
           }
