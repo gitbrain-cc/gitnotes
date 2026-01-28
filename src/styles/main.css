@@ -78,6 +78,17 @@ html[data-theme="classic-dark"] {
   --accent-color: #f08030;
 }
 
+/* Antropique - Anthropic Claude inspired */
+html[data-theme="antropique"] {
+  --bg-primary: #2b2520;
+  --bg-secondary: #231f1b;
+  --bg-tertiary: #362f28;
+  --text-primary: #e8e0d8;
+  --text-secondary: #9a8e82;
+  --border-color: #3a332b;
+  --accent-color: #d97757;
+}
+
 /* True-dark - OLED black */
 html[data-theme="true-dark"] {
   --bg-primary: #000000;
