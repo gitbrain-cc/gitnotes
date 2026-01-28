@@ -36,7 +36,6 @@ interface GitSettings {
 interface EditorSettings {
   font_size: number;
   font_family: string;
-  line_numbers: boolean;
   line_wrapping: boolean;
   tab_size: number;
   use_tabs: boolean;
@@ -450,7 +449,6 @@ export function initSettings() {
   const fontSizeSlider = document.getElementById('font-size-slider') as HTMLInputElement;
   const fontSizeValue = document.getElementById('font-size-value');
   const fontOptions = document.querySelectorAll('.font-option');
-  const lineNumbersToggle = document.getElementById('line-numbers-toggle') as HTMLInputElement;
   const lineWrappingToggle = document.getElementById('line-wrapping-toggle') as HTMLInputElement;
   const useTabsToggle = document.getElementById('use-tabs-toggle') as HTMLInputElement;
   const tabSizeBtns = document.querySelectorAll('.tab-size-btn');
@@ -458,7 +456,6 @@ export function initSettings() {
   let editorSettings: EditorSettings = {
     font_size: 14,
     font_family: 'system',
-    line_numbers: false,
     line_wrapping: true,
     tab_size: 2,
     use_tabs: false,
@@ -480,9 +477,6 @@ export function initSettings() {
       const font = opt.getAttribute('data-font');
       opt.classList.toggle('active', font === settings.font_family);
     });
-    if (lineNumbersToggle) {
-      lineNumbersToggle.checked = settings.line_numbers;
-    }
     if (lineWrappingToggle) {
       lineWrappingToggle.checked = settings.line_wrapping;
     }
@@ -518,13 +512,6 @@ export function initSettings() {
         await setEditorSettings(editorSettings);
       }
     });
-  });
-
-  // Line numbers toggle
-  lineNumbersToggle?.addEventListener('change', async () => {
-    editorSettings.line_numbers = lineNumbersToggle.checked;
-    applyEditorSettings(editorSettings);
-    await setEditorSettings(editorSettings);
   });
 
   // Line wrapping toggle

@@ -1,4 +1,4 @@
-import { EditorView, keymap, ViewPlugin, ViewUpdate, Decoration, DecorationSet, WidgetType, lineNumbers as lineNumbersExt } from '@codemirror/view';
+import { EditorView, keymap, ViewPlugin, ViewUpdate, Decoration, DecorationSet, WidgetType } from '@codemirror/view';
 import { EditorState, Compartment } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
@@ -11,7 +11,6 @@ let editorView: EditorView | null = null;
 let currentFrontMatter: FrontMatter = {};
 
 // Compartments for runtime reconfiguration
-const lineNumbersCompartment = new Compartment();
 const lineWrappingCompartment = new Compartment();
 const tabSizeCompartment = new Compartment();
 
@@ -149,7 +148,6 @@ export function initEditor() {
         selectionBrackets,
         livePreview,
         updateListener,
-        lineNumbersCompartment.of([]),
         lineWrappingCompartment.of(EditorView.lineWrapping),
         tabSizeCompartment.of([indentUnit.of('  '), EditorState.tabSize.of(2)]),
       ],
@@ -164,7 +162,6 @@ export function initEditor() {
 }
 
 interface EditorSettingsForReconfigure {
-  line_numbers: boolean;
   line_wrapping: boolean;
   tab_size: number;
   use_tabs: boolean;
@@ -174,12 +171,6 @@ export function reconfigureEditor(settings: EditorSettingsForReconfigure): void 
   if (!editorView) return;
 
   const effects = [];
-
-  effects.push(
-    lineNumbersCompartment.reconfigure(
-      settings.line_numbers ? lineNumbersExt() : []
-    )
-  );
 
   effects.push(
     lineWrappingCompartment.reconfigure(

@@ -154,8 +154,6 @@ pub struct EditorSettings {
     pub font_size: u8,
     #[serde(default = "default_font_family")]
     pub font_family: String,
-    #[serde(default = "default_line_numbers")]
-    pub line_numbers: bool,
     #[serde(default = "default_line_wrapping")]
     pub line_wrapping: bool,
     #[serde(default = "default_tab_size")]
@@ -166,7 +164,6 @@ pub struct EditorSettings {
 
 fn default_font_size() -> u8 { 14 }
 fn default_font_family() -> String { "system".to_string() }
-fn default_line_numbers() -> bool { false }
 fn default_line_wrapping() -> bool { true }
 fn default_tab_size() -> u8 { 2 }
 fn default_use_tabs() -> bool { false }
@@ -176,7 +173,6 @@ impl Default for EditorSettings {
         EditorSettings {
             font_size: default_font_size(),
             font_family: default_font_family(),
-            line_numbers: default_line_numbers(),
             line_wrapping: default_line_wrapping(),
             tab_size: default_tab_size(),
             use_tabs: default_use_tabs(),
