@@ -7,7 +7,7 @@
 /* Base light theme (used by System mode in light OS) */
 :root {
   /* Text scaling - base for rem calculations */
-  --base-font-size: 14px;
+  --base-font-size: 16px;
   --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
   --bg-primary: #ffffff;
@@ -101,7 +101,7 @@ html[data-theme="true-dark"] {
 }
 
 html {
-  font-size: var(--base-font-size, 14px);
+  font-size: var(--base-font-size, 16px);
 }
 
 html, body {

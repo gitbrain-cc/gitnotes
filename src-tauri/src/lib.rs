@@ -166,7 +166,7 @@ pub struct EditorSettings {
     pub use_tabs: bool,
 }
 
-fn default_font_size() -> u8 { 14 }
+fn default_font_size() -> u8 { 16 }
 fn default_font_family() -> String { "system".to_string() }
 fn default_line_wrapping() -> bool { true }
 fn default_tab_size() -> u8 { 2 }

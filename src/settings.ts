@@ -90,7 +90,7 @@ export function applyTheme(theme: string): void {
 const FONT_STACKS: Record<string, string> = {
   system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   mono: 'ui-monospace, "SF Mono", Menlo, Monaco, monospace',
-  serif: 'Georgia, "Times New Roman", serif',
+  serif: '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif',
 };
 
 export function applyEditorSettings(settings: EditorSettings): void {
@@ -427,6 +427,11 @@ export function initSettings() {
     await invoke('update_settings', { settings: currentSettings });
   });
 
+  // Theme-to-font pairings: selecting certain themes auto-selects a font
+  const THEME_FONT_MAP: Record<string, string> = {
+    antropique: 'serif',
+  };
+
   // Theme change
   const themeOptions = document.querySelectorAll('.theme-option');
   themeOptions.forEach(opt => {
@@ -437,6 +442,15 @@ export function initSettings() {
         applyTheme(theme);
         themeOptions.forEach(o => o.classList.remove('active'));
         opt.classList.add('active');
+
+        // Auto-select paired font if this theme has one
+        const pairedFont = THEME_FONT_MAP[theme];
+        if (pairedFont && editorSettings.font_family !== pairedFont) {
+          editorSettings.font_family = pairedFont;
+          fontOptions.forEach(o => o.classList.toggle('active', o.getAttribute('data-font') === pairedFont));
+          applyEditorSettings(editorSettings);
+          await setEditorSettings(editorSettings);
+        }
       }
     });
   });
@@ -450,7 +464,7 @@ export function initSettings() {
   const tabSizeBtns = document.querySelectorAll('.tab-size-btn');
 
   let editorSettings: EditorSettings = {
-    font_size: 14,
+    font_size: 16,
     font_family: 'system',
     line_wrapping: true,
     tab_size: 2,
