@@ -269,6 +269,50 @@ body {
   flex-shrink: 0;
 }
 
+#status-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#commit-confidence {
+  display: flex;
+  align-items: center;
+}
+
+#commit-confidence.hidden {
+  display: none;
+}
+
+#confidence-bar {
+  width: 40px;
+  height: 3px;
+  background: var(--bg-tertiary);
+  border-radius: 1.5px;
+  overflow: hidden;
+}
+
+#confidence-bar::after {
+  content: '';
+  display: block;
+  height: 100%;
+  width: var(--confidence, 0%);
+  background: var(--accent-color);
+  border-radius: 1.5px;
+  transition: width 0.3s ease;
+}
+
+/* Committed flash animation */
+#status-text.committed-flash {
+  color: var(--accent-color);
+  animation: pulse 0.3s ease;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
 #word-count {
   color: var(--text-secondary);
 }
@@ -1565,60 +1609,53 @@ body.git-view-active #search-container {
   padding: 20px;
 }
 
-/* Commit interval setting */
-#commit-interval-setting {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border-color);
-}
-
-#commit-interval-setting.hidden {
-  display: none;
-}
-
-#commit-interval-setting .settings-label {
-  margin-bottom: 8px;
-}
-
-.interval-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-#commit-interval-input {
-  width: 70px;
-  padding: 8px 12px;
-  font-size: 0.929rem;
+/* Git panel toggle */
+.git-toggle-section {
+  padding: 0.857rem;
   background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
   border-radius: 6px;
-  color: var(--text-primary);
-  text-align: center;
-  -moz-appearance: textfield;
 }
 
-#commit-interval-input::-webkit-outer-spin-button,
-#commit-interval-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+.git-toggle-section .toggle-row {
+  margin-bottom: 0.5rem;
 }
 
-#commit-interval-input:focus {
-  outline: none;
-  border-color: var(--accent-color);
-}
-
-.interval-unit {
-  font-size: 0.929rem;
-  color: var(--text-secondary);
-}
-
-#commit-interval-setting .settings-hint {
-  margin-top: 10px;
+.git-toggle-hint {
   font-size: 0.857rem;
   color: var(--text-tertiary, var(--text-secondary));
   opacity: 0.7;
+  margin: 0;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.857rem;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  margin-top: 0.714rem;
+}
+
+.setting-title {
+  font-size: 0.929rem;
+  color: var(--text-primary);
+}
+
+.setting-description {
+  font-size: 0.857rem;
+  color: var(--text-tertiary, var(--text-secondary));
+  opacity: 0.7;
+  margin-top: 0.25rem;
+}
+
+.setting-select {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.857rem;
 }
 
 /* Git View Mode */
@@ -2159,4 +2196,92 @@ body.git-view-active #search-container {
 
 #update-banner #update-dismiss:hover {
   border-color: white;
+}
+
+/* Commit modal */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+}
+
+.commit-modal-content {
+  width: 400px;
+}
+
+.commit-modal-content h3 {
+  margin: 0 0 16px 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+#commit-message-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+}
+
+#commit-message-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn-secondary,
+.btn-primary {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.btn-primary {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: var(--bg-primary);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
 }

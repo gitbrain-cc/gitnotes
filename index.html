@@ -116,7 +116,12 @@
     </div>
   </div>
   <footer id="status-bar">
-    <span id="status-text">Ready</span>
+    <div id="status-left">
+      <span id="status-text"></span>
+      <div id="commit-confidence" class="hidden">
+        <div id="confidence-bar"></div>
+      </div>
+    </div>
     <span id="word-count"></span>
   </footer>
 
@@ -153,37 +158,24 @@
             </div>
           </div>
           <div id="panel-git" class="settings-panel">
-            <label class="settings-label">Commit mode</label>
-            <div id="git-mode-options">
-              <div class="git-mode-option active" data-mode="smart">
-                <div class="git-mode-radio"></div>
-                <div class="git-mode-info">
-                  <div class="git-mode-name">Smart</div>
-                  <div class="git-mode-desc">Commit after interval or on file switch</div>
-                </div>
-              </div>
-              <div class="git-mode-option" data-mode="simple">
-                <div class="git-mode-radio"></div>
-                <div class="git-mode-info">
-                  <div class="git-mode-name">Simple</div>
-                  <div class="git-mode-desc">Auto-commit on every save</div>
-                </div>
-              </div>
-              <div class="git-mode-option" data-mode="manual">
-                <div class="git-mode-radio"></div>
-                <div class="git-mode-info">
-                  <div class="git-mode-name">Manual</div>
-                  <div class="git-mode-desc">Save only, commit via git status box</div>
-                </div>
-              </div>
+            <div class="settings-row">
+              <label class="settings-toggle">
+                <input type="checkbox" id="auto-commit-toggle" checked>
+                <span class="toggle-slider"></span>
+                <span class="toggle-label">Auto-commit</span>
+              </label>
+              <p class="settings-hint">Automatically commit after periods of inactivity</p>
             </div>
-            <div id="commit-interval-setting">
-              <label class="settings-label">Commit interval</label>
-              <div class="interval-row">
-                <input type="number" id="commit-interval-input" min="1" max="120" value="30">
-                <span class="interval-unit">minutes</span>
+            <div class="setting-row">
+              <div class="setting-label">
+                <div class="setting-title">Team repository</div>
+                <div class="setting-description">Show author names in commits and notes</div>
               </div>
-              <p class="settings-hint">Commits after this much inactivity or when switching files</p>
+              <select id="team-override-select" class="setting-select">
+                <option value="auto">Auto</option>
+                <option value="on">On</option>
+                <option value="off">Off</option>
+              </select>
             </div>
           </div>
           <div id="panel-editor" class="settings-panel">
@@ -432,6 +424,17 @@
           <div id="create-vault-error" class="onboarding-error hidden"></div>
           <button id="create-vault-btn" class="onboarding-btn primary" disabled>Create</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="commit-modal" class="modal hidden">
+    <div class="modal-content commit-modal-content">
+      <h3>Commit Changes</h3>
+      <input type="text" id="commit-message-input" placeholder="Commit message" autocomplete="off">
+      <div class="modal-actions">
+        <button id="commit-cancel" class="btn-secondary">Cancel</button>
+        <button id="commit-confirm" class="btn-primary">Commit</button>
       </div>
     </div>
   </div>

@@ -91,6 +91,10 @@ pub struct Vault {
     pub id: String,
     pub name: String,
     pub path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_team: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_team_override: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -107,25 +111,25 @@ pub struct VaultStats {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GitSettings {
-    #[serde(default = "default_commit_mode")]
-    pub commit_mode: String,
-    #[serde(default = "default_commit_interval")]
-    pub commit_interval: u32,
+    #[serde(default = "default_auto_commit")]
+    pub auto_commit: bool,
+    // Keep old fields for migration, marked skip_serializing
+    #[serde(default, skip_serializing)]
+    pub commit_mode: Option<String>,
+    #[serde(default, skip_serializing)]
+    pub commit_interval: Option<u32>,
 }
 
-fn default_commit_mode() -> String {
-    "manual".to_string()
-}
-
-fn default_commit_interval() -> u32 {
-    30
+fn default_auto_commit() -> bool {
+    true
 }
 
 impl Default for GitSettings {
     fn default() -> Self {
         GitSettings {
-            commit_mode: default_commit_mode(),
-            commit_interval: default_commit_interval(),
+            auto_commit: default_auto_commit(),
+            commit_mode: None,
+            commit_interval: None,
         }
     }
 }
@@ -204,7 +208,15 @@ fn load_settings() -> Settings {
     let path = get_settings_path();
     if path.exists() {
         if let Ok(content) = fs::read_to_string(&path) {
-            if let Ok(settings) = serde_json::from_str(&content) {
+            if let Ok(mut settings) = serde_json::from_str::<Settings>(&content) {
+                // Migrate old commit_mode to auto_commit
+                if let Some(ref mode) = settings.git.commit_mode {
+                    settings.git.auto_commit = mode != "manual";
+                    settings.git.commit_mode = None;
+                    settings.git.commit_interval = None;
+                    // Save migrated settings
+                    let _ = save_settings(&settings);
+                }
                 return settings;
             }
         }
@@ -812,6 +824,14 @@ fn create_note_smart(section_path: String) -> Result<Note, String> {
     let content = format!("{}\n\n", format_frontmatter(&fm));
     fs::write(&file_path, content).map_err(|e| e.to_string())?;
 
+    // Position new note based on sort order (manual sort needs explicit ordering)
+    let mut section_meta = load_section_metadata(&path);
+    if section_meta.sort == "manual" {
+        // Insert at top for manual sort (most visible position)
+        section_meta.order.insert(0, filename.clone());
+        let _ = save_section_metadata(&path, &section_meta);
+    }
+
     Ok(Note {
         name,
         path: file_path.to_string_lossy().to_string(),
@@ -1100,6 +1120,7 @@ pub struct RepoStatus {
     pub last_commit_message: Option<String>,
     pub last_commit_date: Option<String>,
     pub last_commit_author: Option<String>,
+    pub is_team: bool,
 }
 
 #[tauri::command]
@@ -1375,6 +1396,54 @@ fn get_repo_status() -> Result<RepoStatus, String> {
             _ => (None, None, None, None),
         };
 
+    // Detect team brain: use cached value or count unique committer emails
+    let mut settings = load_settings();
+    let cached_is_team = settings
+        .active_vault
+        .as_ref()
+        .and_then(|id| settings.vaults.iter().find(|v| &v.id == id))
+        .and_then(|v| v.is_team);
+
+    let is_team = if let Some(cached) = cached_is_team {
+        cached
+    } else {
+        let unique_authors = Command::new("sh")
+            .args(["-c", "git log --format='%ae' | sort -u | head -3"])
+            .current_dir(&notes_path)
+            .output();
+
+        let author_count = unique_authors
+            .ok()
+            .filter(|o| o.status.success())
+            .map(|o| {
+                String::from_utf8_lossy(&o.stdout)
+                    .lines()
+                    .filter(|l| !l.trim().is_empty())
+                    .count()
+            })
+            .unwrap_or(0);
+
+        let detected = author_count >= 2;
+
+        // Cache result on the active vault
+        if let Some(active_id) = &settings.active_vault {
+            if let Some(vault) = settings.vaults.iter_mut().find(|v| &v.id == active_id) {
+                vault.is_team = Some(detected);
+                let _ = save_settings(&settings);
+            }
+        }
+
+        detected
+    };
+
+    // Resolve effective is_team (override takes precedence)
+    let effective_is_team = settings
+        .active_vault
+        .as_ref()
+        .and_then(|id| settings.vaults.iter().find(|v| &v.id == id))
+        .map(|v| v.is_team_override.unwrap_or(is_team))
+        .unwrap_or(is_team);
+
     Ok(RepoStatus {
         repo_name,
         is_dirty,
@@ -1385,6 +1454,7 @@ fn get_repo_status() -> Result<RepoStatus, String> {
         last_commit_message,
         last_commit_date,
         last_commit_author,
+        is_team: effective_is_team,
     })
 }
 
@@ -1924,6 +1994,8 @@ async fn add_vault(app: tauri::AppHandle) -> Result<Option<Vault>, String> {
                 id: generate_id(),
                 name,
                 path: path_str,
+                is_team: None,
+                is_team_override: None,
             };
 
             let mut settings = load_settings();
@@ -1976,6 +2048,8 @@ fn add_existing_vault(path: String) -> Result<Vault, String> {
         id: generate_id(),
         name,
         path,
+        is_team: None,
+        is_team_override: None,
     };
 
     let mut settings = load_settings();
@@ -1986,26 +2060,15 @@ fn add_existing_vault(path: String) -> Result<Vault, String> {
 }
 
 #[tauri::command]
-fn set_git_mode(mode: String) -> Result<(), String> {
+fn get_auto_commit() -> bool {
+    let settings = load_settings();
+    settings.git.auto_commit
+}
+
+#[tauri::command]
+fn set_auto_commit(enabled: bool) -> Result<(), String> {
     let mut settings = load_settings();
-    settings.git.commit_mode = mode;
-    save_settings(&settings)
-}
-
-#[tauri::command]
-fn get_git_mode() -> String {
-    load_settings().git.commit_mode
-}
-
-#[tauri::command]
-fn get_commit_interval() -> u32 {
-    load_settings().git.commit_interval
-}
-
-#[tauri::command]
-fn set_commit_interval(interval: u32) -> Result<(), String> {
-    let mut settings = load_settings();
-    settings.git.commit_interval = interval;
+    settings.git.auto_commit = enabled;
     save_settings(&settings)
 }
 
@@ -2203,6 +2266,8 @@ async fn clone_vault(_app: tauri::AppHandle, url: String, path: String) -> Resul
         id: generate_id(),
         name,
         path: path.clone(),
+        is_team: None,
+        is_team_override: None,
     };
 
     // Save to settings
@@ -2258,6 +2323,8 @@ async fn create_vault(path: String, name: String) -> Result<Vault, String> {
         id: generate_id(),
         name,
         path,
+        is_team: None,
+        is_team_override: None,
     };
 
     // Add to settings
@@ -2382,10 +2449,8 @@ pub fn run() {
             remove_vault,
             set_active_vault,
             add_existing_vault,
-            set_git_mode,
-            get_git_mode,
-            get_commit_interval,
-            set_commit_interval,
+            get_auto_commit,
+            set_auto_commit,
             get_theme,
             set_theme,
             get_editor_settings,

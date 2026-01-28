@@ -15,6 +15,8 @@ interface Vault {
   id: string;
   name: string;
   path: string;
+  is_team?: boolean | null;
+  is_team_override?: boolean | null;
 }
 
 interface VaultStats {
@@ -29,8 +31,7 @@ interface VaultStats {
 }
 
 interface GitSettings {
-  commit_mode: string;
-  commit_interval: number;
+  auto_commit: boolean;
 }
 
 interface EditorSettings {
@@ -54,20 +55,12 @@ export async function getSettings(): Promise<Settings> {
   return await invoke('get_settings');
 }
 
-export async function getGitMode(): Promise<string> {
-  return await invoke('get_git_mode');
+export async function getAutoCommit(): Promise<boolean> {
+  return await invoke<boolean>('get_auto_commit');
 }
 
-export async function setGitMode(mode: string): Promise<void> {
-  return await invoke('set_git_mode', { mode });
-}
-
-export async function getCommitInterval(): Promise<number> {
-  return await invoke('get_commit_interval');
-}
-
-export async function setCommitInterval(interval: number): Promise<void> {
-  return await invoke('set_commit_interval', { interval });
+export async function setAutoCommit(enabled: boolean): Promise<void> {
+  await invoke('set_auto_commit', { enabled });
 }
 
 export async function getTheme(): Promise<string> {
@@ -267,24 +260,28 @@ async function loadSettingsData() {
   currentSettings = await getSettings();
   await renderVaultList();
 
-  // Update git mode selection
+  // Update auto-commit toggle
   if (currentSettings) {
-    const options = document.querySelectorAll('.git-mode-option');
-    options.forEach(opt => {
-      const mode = opt.getAttribute('data-mode');
-      opt.classList.toggle('active', mode === currentSettings!.git.commit_mode);
-    });
-  }
+    const autoCommitToggle = document.getElementById('auto-commit-toggle') as HTMLInputElement;
+    if (autoCommitToggle) {
+      autoCommitToggle.checked = currentSettings.git.auto_commit;
+    }
 
-  // Update interval input
-  const intervalInput = document.getElementById('commit-interval-input') as HTMLInputElement;
-  const intervalSetting = document.getElementById('commit-interval-setting');
-  if (intervalInput && currentSettings) {
-    intervalInput.value = String(currentSettings.git.commit_interval || 30);
-  }
-  // Show/hide interval setting based on mode
-  if (intervalSetting) {
-    intervalSetting.classList.toggle('hidden', currentSettings?.git.commit_mode !== 'smart');
+    // Update team override select
+    const teamSelect = document.getElementById('team-override-select') as HTMLSelectElement;
+    if (teamSelect) {
+      const activeVault = currentSettings.vaults.find(v => v.id === currentSettings!.active_vault)
+        || currentSettings.vaults[0];
+      if (activeVault) {
+        if (activeVault.is_team_override === true) {
+          teamSelect.value = 'on';
+        } else if (activeVault.is_team_override === false) {
+          teamSelect.value = 'off';
+        } else {
+          teamSelect.value = 'auto';
+        }
+      }
+    }
   }
 
   // Update theme selection
@@ -303,7 +300,6 @@ export function initSettings() {
   const addRepoBtn = document.getElementById('add-repo-btn');
   const addRepoDropdown = document.getElementById('add-repo-dropdown');
   const addRepoMenu = document.getElementById('add-repo-menu');
-  const gitModeOptions = document.querySelectorAll('.git-mode-option');
   const tabs = document.querySelectorAll('.settings-tab');
 
   // Listen for menu event (Cmd+, or GitNotes > Settings)
@@ -405,30 +401,30 @@ export function initSettings() {
   initCloneModal(onVaultAdded);
   initCreateModal(onVaultAdded);
 
-  // Git mode change
-  gitModeOptions.forEach(opt => {
-    opt.addEventListener('click', async () => {
-      const mode = opt.getAttribute('data-mode');
-      if (mode) {
-        await setGitMode(mode);
-        gitModeOptions.forEach(o => o.classList.remove('active'));
-        opt.classList.add('active');
-        // Show/hide interval setting
-        const intervalSetting = document.getElementById('commit-interval-setting');
-        if (intervalSetting) {
-          intervalSetting.classList.toggle('hidden', mode !== 'smart');
-        }
-      }
-    });
+  // Auto-commit toggle change
+  const autoCommitToggle = document.getElementById('auto-commit-toggle') as HTMLInputElement;
+  autoCommitToggle?.addEventListener('change', async () => {
+    await setAutoCommit(autoCommitToggle.checked);
   });
 
-  // Commit interval change
-  const intervalInput = document.getElementById('commit-interval-input') as HTMLInputElement;
-  intervalInput?.addEventListener('change', async () => {
-    const interval = parseInt(intervalInput.value, 10);
-    if (interval >= 1 && interval <= 120) {
-      await setCommitInterval(interval);
+  // Team override select
+  const teamSelect = document.getElementById('team-override-select') as HTMLSelectElement;
+  teamSelect?.addEventListener('change', async () => {
+    if (!currentSettings) return;
+    const value = teamSelect.value;
+    const activeVault = currentSettings.vaults.find(v => v.id === currentSettings!.active_vault)
+      || currentSettings.vaults[0];
+    if (!activeVault) return;
+
+    if (value === 'on') {
+      activeVault.is_team_override = true;
+    } else if (value === 'off') {
+      activeVault.is_team_override = false;
+    } else {
+      activeVault.is_team_override = null;
     }
+
+    await invoke('update_settings', { settings: currentSettings });
   });
 
   // Theme change

@@ -11,6 +11,7 @@ interface RepoStatus {
   last_commit_message: string | null;
   last_commit_date: string | null;
   last_commit_author: string | null;
+  is_team: boolean;
 }
 
 function formatRelativeTime(dateStr: string): string {
@@ -63,11 +64,13 @@ function renderStatus(status: RepoStatus): void {
       statusText = `${fileText} · ${statsText}`;
     } else if (status.last_commit_date && status.last_commit_message) {
       // Show last commit info when clean
-      statusText = `${formatRelativeTime(status.last_commit_date)} · ${
-        status.last_commit_message.length > 20
-          ? status.last_commit_message.slice(0, 20) + '...'
-          : status.last_commit_message
-      }`;
+      const timeText = formatRelativeTime(status.last_commit_date);
+      const msgText = status.last_commit_message.length > 20
+        ? status.last_commit_message.slice(0, 20) + '...'
+        : status.last_commit_message;
+      statusText = status.is_team && status.last_commit_author
+        ? `${timeText} · ${status.last_commit_author} · ${msgText}`
+        : `${timeText} · ${msgText}`;
     } else {
       statusText = 'No commits yet';
     }
