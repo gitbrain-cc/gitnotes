@@ -1,13 +1,17 @@
 import { invoke } from '@tauri-apps/api/core';
 import {
-  loadSections, loadNotes, setCurrentNote, setStatus,
+  loadSections, loadNotes, setCurrentNote, setStatus, clearPendingSave,
   createNoteSmart, deleteNote, renameNote, createSection, deleteSection, moveNote,
-  loadNoteWithHeader, setSectionMetadata, trySmartCommit, saveSectionOrder
+  loadNoteWithHeader, setSectionMetadata, saveSectionOrder,
+  gitCommit, flashCommitted, getCurrentNote
 } from './main';
-import { loadContent, updateHeaderData } from './editor';
+import { loadContent, updateHeaderData, focusEditor } from './editor';
 import { showContextMenu } from './contextmenu';
-import { initSortMenu, updateSortForSection } from './sortmenu';
+import { initSortMenu, updateSortForSection, getCurrentSort } from './sortmenu';
 import { showColorPicker } from './colorpicker';
+import { triggerImmediateCommit } from './commit-engine';
+import { getAutoCommit } from './settings';
+import { refreshGitStatus } from './git-status';
 
 interface Section {
   name: string;
@@ -58,6 +62,9 @@ function startRename(note: Note, li: HTMLElement) {
   input.type = 'text';
   input.value = note.name;
   input.className = 'inline-rename';
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.title = '';
 
   li.textContent = '';
   li.appendChild(input);
@@ -66,9 +73,10 @@ function startRename(note: Note, li: HTMLElement) {
 
   const finishRename = async () => {
     const newName = input.value.trim();
+    let renamedNote: Note | null = null;
     if (newName && newName !== note.name) {
       try {
-        await renameNote(note.path, newName);
+        renamedNote = await renameNote(note.path, newName);
       } catch (err) {
         console.error('Rename error:', err);
       }
@@ -76,6 +84,8 @@ function startRename(note: Note, li: HTMLElement) {
     if (currentSection) {
       const notes = await loadNotes(currentSection.path);
       renderNotes(notes);
+      await selectNote(renamedNote || note);
+      focusEditor();
     }
   };
 
@@ -144,6 +154,8 @@ async function refreshCurrentNotes() {
   renderNotes(notes);
 }
 
+let listenersInitialized = false;
+
 export async function initSidebar() {
   // Initialize sort menu with refresh callback
   initSortMenu(refreshCurrentNotes);
@@ -155,12 +167,32 @@ export async function initSidebar() {
     await selectSection(sections[0]);
   }
 
+  // Only add event listeners once (initSidebar can be called multiple times on vault switch)
+  if (listenersInitialized) return;
+  listenersInitialized = true;
+
   document.getElementById('add-page-btn')?.addEventListener('click', async () => {
     if (!currentSection) return;
     try {
       const note = await createNoteSmart(currentSection.path);
       const notes = await loadNotes(currentSection.path);
       renderNotes(notes);
+
+      // Position new note at a predictable edge for alpha sort
+      // (timestamp sorts already place new notes correctly)
+      const sort = getCurrentSort();
+      if (sort.type === 'alpha') {
+        const li = document.querySelector(`[data-path="${note.path}"]`) as HTMLElement;
+        const list = document.getElementById('pages-list');
+        if (li && list) {
+          if (sort.direction === 'desc') {
+            list.prepend(li);
+          } else {
+            list.append(li);
+          }
+        }
+      }
+
       await selectNote(note);
 
       // Auto-trigger rename if Untitled
@@ -413,7 +445,17 @@ function renderSections() {
 }
 
 async function selectSection(section: Section) {
-  await trySmartCommit();
+  // Commit current note before switching (if auto-commit enabled)
+  const autoCommit = await getAutoCommit();
+  const noteBeforeSwitch = getCurrentNote();
+  if (autoCommit && noteBeforeSwitch) {
+    await triggerImmediateCommit(async (msg) => {
+      await gitCommit(noteBeforeSwitch.path, msg);
+      flashCommitted();
+      await refreshGitStatus();
+    });
+  }
+
   currentSection = section;
   renderSections();
 
@@ -467,7 +509,19 @@ function renderNotes(notes: Note[]) {
 }
 
 export async function selectNote(note: Note, matchLine?: number, searchTerm?: string) {
-  await trySmartCommit();
+  // Cancel any pending save from previous note to prevent status flash
+  clearPendingSave();
+
+  // Commit current note before switching (if auto-commit enabled)
+  const autoCommit = await getAutoCommit();
+  const noteBeforeSwitch = getCurrentNote();
+  if (autoCommit && noteBeforeSwitch && noteBeforeSwitch.path !== note.path) {
+    await triggerImmediateCommit(async (msg) => {
+      await gitCommit(noteBeforeSwitch.path, msg);
+      flashCommitted();
+      await refreshGitStatus();
+    });
+  }
 
   // Save as last opened note for current section (fire-and-forget)
   if (currentSection) {

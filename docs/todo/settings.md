@@ -24,9 +24,9 @@
 
 ### Commit Behavior
 
-- [x] **Simple mode** - Auto-commit on save
-- [x] **Manual mode** - No auto-commit, explicit only
-- [x] **Smart mode** - Batch commits with configurable interval (1-120 min)
+- [x] **Auto-commit toggle** - Enable/disable intelligent auto-commit
+- [x] **Confidence-based timing** - Commits when editing session ends
+- [x] **Cmd+S commit modal** - Manual commit with custom message
 
 ### Commit Messages
 

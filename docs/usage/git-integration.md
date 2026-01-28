@@ -104,27 +104,61 @@ The page header shows git status for the current file:
 
 ## Status Bar
 
-The bottom status bar shows save/commit progress:
-
-| Status | Meaning |
-|--------|---------|
-| **Ready** | App idle |
-| **Modified...** | You're typing (waiting for auto-save) |
-| **Saved** | File written to disk |
-| **Committed** | Git commit succeeded |
-| **Saved (not committed)** | File saved but git commit failed |
+The bottom status bar shows save/commit progress. See the [detailed Status Bar section](#status-bar) under Auto-Save & Auto-Commit for the full breakdown.
 
 ## Auto-Save & Auto-Commit
 
-1. You edit a file
-2. After 500ms of no typing → **auto-save** triggers
-3. File is written to disk → status shows "Saved"
-4. **Auto-commit** runs immediately → status shows "Committed"
-5. Commit message: `Update {page-name}`
+GitNotes automatically saves your work and intelligently commits changes.
 
-Only the current file is committed, not the whole repo.
+### How It Works
 
-> **Note:** Currently commits on every save, which can create many commits during active editing. Smarter commit modes (batching, manual, etc.) are planned - see `docs/todo/settings.md`.
+1. **Auto-save** - 500ms after you stop typing, the file is saved
+2. **Commit evaluation** - The app monitors signals to detect when you're done editing
+3. **Auto-commit** - When confidence reaches 100%, changes are committed
+
+### Commit Signals
+
+The app combines multiple signals to decide when to commit:
+
+| Signal | What it detects |
+|--------|-----------------|
+| Idle time | No typing for 30s, 1min, or 2min |
+| Velocity drop | Was typing fast, now stopped |
+| Paragraph end | Finished a paragraph (double newline) |
+| Heading end | Completed a heading |
+| Scrolled away | Viewport moved from edit location |
+| Cursor moved | Cursor far from where you were typing |
+
+### Immediate Commit Triggers
+
+These actions trigger an immediate commit (after 30s safety delay):
+- Switching to another note
+- Switching to another section
+- Switching to another app (window blur)
+- Closing the app
+
+### Manual Commit (Cmd+S)
+
+Press **Cmd+S** to open the commit dialog. You can:
+- Accept the auto-generated message (press Enter)
+- Write your own message
+- Cancel with Escape
+
+### Status Bar
+
+The status bar shows commit progress:
+
+| Display | Meaning |
+|---------|---------|
+| `Ready` | No uncommitted changes |
+| `Modified...` | Currently typing |
+| `Saved` | File saved, evaluating commit |
+| `Saved · ████░░ 52%` | Confidence building toward commit |
+| `Committed ✓` | Just committed (flashes briefly) |
+
+### Disabling Auto-Commit
+
+In Settings > Git, toggle off "Auto-commit" to commit only via Cmd+S.
 
 ## Error Handling
 

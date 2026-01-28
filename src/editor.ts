@@ -1,7 +1,7 @@
 import { EditorView, keymap, ViewPlugin, ViewUpdate, Decoration, DecorationSet, WidgetType } from '@codemirror/view';
 import { EditorState, Compartment } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { syntaxHighlighting, defaultHighlightStyle, indentUnit } from '@codemirror/language';
 import { scheduleSave } from './main';
 import { FrontMatter, parseFrontMatter, serializeFrontMatter } from './frontmatter';
@@ -143,7 +143,7 @@ export function initEditor() {
         history(),
         markdown(),
         syntaxHighlighting(defaultHighlightStyle),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
+        keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap]),
         theme,
         selectionBrackets,
         livePreview,
@@ -279,4 +279,26 @@ export function scrollToLine(lineNumber: number, searchTerm?: string) {
   editorView.dispatch({
     selection: { anchor: line.from }
   });
+}
+
+// Commit engine accessor functions
+export function getCursorPosition(): number {
+  if (!editorView) return 0;
+  return editorView.state.selection.main.head;
+}
+
+export function getScrollTop(): number {
+  if (!editorView) return 0;
+  return editorView.scrollDOM.scrollTop;
+}
+
+export function getViewportHeight(): number {
+  if (!editorView) return 0;
+  return editorView.scrollDOM.clientHeight;
+}
+
+export function getContentUpToCursor(): string {
+  if (!editorView) return '';
+  const pos = editorView.state.selection.main.head;
+  return editorView.state.doc.sliceString(0, pos);
 }

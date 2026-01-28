@@ -1,13 +1,18 @@
 import { invoke } from '@tauri-apps/api/core';
 import { initSidebar, navigateToPath } from './sidebar';
-import { initEditor, getContent, focusEditor, getWordCount, updateHeaderData, loadContent } from './editor';
+import {
+  initEditor, getContent, focusEditor, getWordCount, updateHeaderData, loadContent,
+  getCursorPosition, getScrollTop, getViewportHeight, getContentUpToCursor
+} from './editor';
+import { recordEdit, recordSave, recordCommit, startEvalLoop, triggerImmediateCommit } from './commit-engine';
 import { initSearchBar, openSearchBar, loadAllNotes, closeSearchBar, isSearchBarOpen, addRecentFile } from './search-bar';
 import { parseFrontMatter, serializeFrontMatter, FrontMatter } from './frontmatter';
 import { initGitStatus, refreshGitStatus } from './git-status';
-import { initSettings, getGitMode, getCommitInterval, isSettingsOpen, closeSettings, getTheme, applyTheme, getEditorSettings, applyEditorSettings } from './settings';
+import { initSettings, isSettingsOpen, closeSettings, getTheme, applyTheme, getEditorSettings, applyEditorSettings, getAutoCommit } from './settings';
 import { initGitView, isGitModeOpen, exitGitMode } from './git-view';
 import { checkOnboarding, initOnboarding, showOnboarding } from './onboarding';
 import { checkForUpdates } from './updater';
+import { initCommitModal, openCommitModal, isCommitModalOpen, closeCommitModal } from './commit-modal';
 
 interface Section {
   name: string;
@@ -37,10 +42,12 @@ let currentFrontMatter: FrontMatter = {};
 let currentBody: string = '';
 let saveTimeout: number | null = null;
 
-// Smart commit state
-let lastCommitTime: number = Date.now();
-let hasUncommittedChanges: boolean = false;
-let inactivityTimer: number | null = null;
+export function clearPendingSave() {
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
+  }
+}
 
 export async function loadSections(): Promise<Section[]> {
   return await invoke('list_sections');
@@ -118,11 +125,38 @@ export function getCurrentNote(): Note | null {
   return currentNote;
 }
 
-export function setStatus(text: string) {
-  const statusEl = document.getElementById('status-text');
-  if (statusEl) {
-    statusEl.textContent = text;
+export function setStatus(_text: string) {
+  // Status text removed - dirty/commit info shown in note header
+  // Keeping function signature for compatibility
+}
+
+export function setConfidence(score: number): void {
+  const container = document.getElementById('commit-confidence');
+  const bar = document.getElementById('confidence-bar');
+
+  if (!container || !bar) return;
+
+  if (score <= 0) {
+    container.classList.add('hidden');
+    return;
   }
+
+  container.classList.remove('hidden');
+  bar.style.setProperty('--confidence', `${score}%`);
+}
+
+export function flashCommitted(): void {
+  const statusEl = document.getElementById('status-text');
+  if (!statusEl) return;
+
+  statusEl.textContent = 'Committed ✓';
+  statusEl.classList.add('committed-flash');
+
+  setTimeout(() => {
+    statusEl.classList.remove('committed-flash');
+    statusEl.textContent = '';
+    setConfidence(0);
+  }, 2000);
 }
 
 export function updateWordCount() {
@@ -162,7 +196,7 @@ function buildModifiedInfo(gitInfo: GitInfo): string | null {
   }
 
   if (!gitInfo.is_tracked) {
-    return 'New · not in git';
+    return 'New note';
   }
 
   if (gitInfo.is_dirty) {
@@ -240,56 +274,13 @@ async function refreshHeader() {
   });
 }
 
-export async function trySmartCommit(): Promise<void> {
-  if (!hasUncommittedChanges) return;
-
-  const gitMode = await getGitMode();
-  if (gitMode !== 'smart') return;
-
-  const interval = await getCommitInterval();
-  const intervalMs = interval * 60 * 1000;
-  const timeSinceLastCommit = Date.now() - lastCommitTime;
-
-  if (timeSinceLastCommit < intervalMs) return;
-
-  // Get current note for commit message
-  const note = getCurrentNote();
-  if (!note) return;
-
-  try {
-    const filename = note.filename.replace('.md', '');
-    await gitCommit(note.path, `Update ${filename}`);
-    lastCommitTime = Date.now();
-    hasUncommittedChanges = false;
-    setStatus('Committed');
-    await refreshGitStatus();
-  } catch {
-    // Commit failed - that's ok
-  }
-}
-
-export async function resetInactivityTimer(): Promise<void> {
-  if (inactivityTimer !== null) {
-    clearTimeout(inactivityTimer);
-  }
-
-  const gitMode = await getGitMode();
-  if (gitMode !== 'smart') return;
-
-  const interval = await getCommitInterval();
-  const intervalMs = interval * 60 * 1000;
-
-  inactivityTimer = window.setTimeout(() => {
-    trySmartCommit();
-  }, intervalMs);
-}
-
 export function scheduleSave() {
   if (saveTimeout) {
     clearTimeout(saveTimeout);
   }
 
   setStatus('Modified...');
+  recordEdit(getCursorPosition(), getScrollTop());
   updateWordCount();
 
   saveTimeout = window.setTimeout(async () => {
@@ -307,24 +298,12 @@ export function scheduleSave() {
         await writeNote(currentNote.path, contentToSave);
         setStatus('Saved');
 
-        const gitMode = await getGitMode();
+        // Count lines changed (approximate)
+        const linesChanged = fullContent.split('\n').length;
+        recordSave(currentNote.path, linesChanged);
 
-        if (gitMode === 'simple') {
-          // Simple mode: commit immediately
-          try {
-            const filename = currentNote.filename.replace('.md', '');
-            await gitCommit(currentNote.path, `Update ${filename}`);
-            lastCommitTime = Date.now();
-            setStatus('Committed');
-          } catch {
-            setStatus('Saved (not committed)');
-          }
-        } else if (gitMode === 'smart') {
-          // Smart mode: mark as uncommitted, reset timer
-          hasUncommittedChanges = true;
-          await resetInactivityTimer();
-        }
-        // Manual mode: just saved, no commit action
+        // Commit engine handles timing via evaluation loop
+        // Just record the save, it will evaluate and commit when ready
 
         await refreshHeader();
         await refreshGitStatus();
@@ -343,6 +322,12 @@ function handleSearchSelect(result: { path: string; section?: string }, matchLin
 
 function setupKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
+    // Cmd+S: Open commit modal
+    if (e.metaKey && e.key === 's') {
+      e.preventDefault();
+      openCommitModal();
+    }
+
     // Cmd+P or Cmd+Shift+F: Search bar
     if (e.metaKey && (e.key === 'p' || (e.shiftKey && e.key === 'f'))) {
       e.preventDefault();
@@ -365,9 +350,11 @@ function setupKeyboardShortcuts() {
       firstItem?.focus();
     }
 
-    // Esc: Close settings, git view, or search
+    // Esc: Close modals in order
     if (e.key === 'Escape') {
-      if (isSettingsOpen()) {
+      if (isCommitModalOpen()) {
+        closeCommitModal();
+      } else if (isSettingsOpen()) {
         closeSettings();
       } else if (isGitModeOpen()) {
         exitGitMode();
@@ -398,28 +385,63 @@ async function init() {
     initGitStatus();
     initGitView();
     initSettings();
+    initCommitModal();
     setupKeyboardShortcuts();
     await initSidebar();
     await loadAllNotes();
     setStatus('Ready');
 
+    // Start commit evaluation loop
+    startEvalLoop(
+      async (score, shouldCommit, message) => {
+        setConfidence(score);
+
+        if (shouldCommit && currentNote) {
+          const autoCommit = await getAutoCommit();
+          if (autoCommit) {
+            try {
+              await gitCommit(currentNote.path, message);
+              recordCommit();
+              flashCommitted();
+              await refreshGitStatus();
+            } catch {
+              // Commit failed silently
+            }
+          }
+        }
+      },
+      () => ({
+        cursor: getCursorPosition(),
+        scroll: getScrollTop(),
+        viewport: getViewportHeight(),
+        content: getContentUpToCursor(),
+      })
+    );
+
+    // Immediate commit on blur (app loses focus)
+    window.addEventListener('blur', async () => {
+      const autoCommit = await getAutoCommit();
+      if (autoCommit && currentNote) {
+        await triggerImmediateCommit(async (msg) => {
+          await gitCommit(currentNote!.path, msg);
+          flashCommitted();
+          await refreshGitStatus();
+        });
+      }
+    });
+
+    // Immediate commit on close (window closes)
+    window.addEventListener('beforeunload', async () => {
+      const autoCommit = await getAutoCommit();
+      if (autoCommit && currentNote) {
+        await triggerImmediateCommit(async (msg) => {
+          await gitCommit(currentNote!.path, msg);
+        });
+      }
+    });
+
     // Check for updates in background
     checkForUpdates();
-
-    // Smart commit on blur/close
-    window.addEventListener('blur', () => {
-      trySmartCommit();
-    });
-
-    window.addEventListener('beforeunload', () => {
-      trySmartCommit();
-    });
-
-    // Reset inactivity timer on editor changes
-    const editorEl = document.getElementById('editor-container');
-    editorEl?.addEventListener('keydown', () => {
-      resetInactivityTimer();
-    });
   } catch (err) {
     console.error('Init error:', err);
     setStatus('Error loading');

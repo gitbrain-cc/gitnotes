@@ -108,6 +108,10 @@ export async function updateSortForSection(sectionPath: string) {
   }
 }
 
+export function getCurrentSort(): SortState {
+  return currentSort;
+}
+
 export function initSortMenu(refreshCallback: () => void) {
   onSortChange = refreshCallback;
 
