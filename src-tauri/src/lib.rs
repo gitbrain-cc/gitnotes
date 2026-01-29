@@ -1297,23 +1297,13 @@ fn git_commit_and_push(message: String) -> Result<(), String> {
 fn get_repo_status() -> Result<RepoStatus, String> {
     let notes_path = get_notes_path();
 
-    // Get repo name from remote or folder name
-    let repo_name = Command::new("git")
-        .args(["remote", "get-url", "origin"])
-        .current_dir(&notes_path)
-        .output()
-        .ok()
-        .and_then(|o| {
-            if o.status.success() {
-                let url = String::from_utf8_lossy(&o.stdout).trim().to_string();
-                // Extract repo name from URL (e.g., "repo.git" -> "repo")
-                url.split('/')
-                    .last()
-                    .map(|s| s.trim_end_matches(".git").to_string())
-            } else {
-                None
-            }
-        })
+    // Get repo name from active vault config, falling back to folder name
+    let settings = load_settings();
+    let repo_name = settings
+        .active_vault
+        .and_then(|id| settings.vaults.iter().find(|v| v.id == id).cloned())
+        .or_else(|| settings.vaults.first().cloned())
+        .map(|v| v.name)
         .unwrap_or_else(|| {
             notes_path
                 .file_name()

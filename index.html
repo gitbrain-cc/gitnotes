@@ -114,6 +114,186 @@
         <div id="git-diff-content"></div>
       </main>
     </div>
+
+    <!-- Settings View -->
+    <div id="settings-view" class="hidden">
+      <div id="settings-sidebar" class="sidebar">
+        <div class="sidebar-header">
+          <button id="settings-back" class="settings-back-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            Settings
+          </button>
+        </div>
+        <ul id="settings-nav">
+          <li class="settings-tab active" data-tab="repositories">Repositories</li>
+          <li class="settings-tab" data-tab="git">Git</li>
+          <li class="settings-tab" data-tab="editor">Editor</li>
+          <li class="settings-tab" data-tab="appearance">Appearance</li>
+        </ul>
+      </div>
+      <div id="settings-content">
+        <div id="panel-repositories" class="settings-panel active">
+          <h2 class="settings-panel-title">Repositories</h2>
+          <div id="vault-list"></div>
+          <div id="vault-actions">
+            <div id="add-repo-dropdown" class="add-repo-dropdown">
+              <button id="add-repo-btn">
+                + Add Repository
+                <svg class="dropdown-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <div id="add-repo-menu" class="dropdown-menu hidden">
+                <button class="dropdown-item" data-action="local">Add Local Folder</button>
+                <button class="dropdown-item" data-action="clone">Clone Repository</button>
+                <button class="dropdown-item" data-action="create">Create Repository</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="panel-git" class="settings-panel">
+          <h2 class="settings-panel-title">Git</h2>
+          <div class="settings-row">
+            <label class="settings-toggle">
+              <input type="checkbox" id="auto-commit-toggle" checked>
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">Auto-commit</span>
+            </label>
+            <p class="settings-hint">Automatically commit after periods of inactivity</p>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">
+              <div class="setting-title">Team repository</div>
+              <div class="setting-description">Show author names in commits and notes</div>
+            </div>
+            <select id="team-override-select" class="setting-select">
+              <option value="auto">Auto</option>
+              <option value="on">On</option>
+              <option value="off">Off</option>
+            </select>
+          </div>
+        </div>
+        <div id="panel-editor" class="settings-panel">
+          <h2 class="settings-panel-title">Editor</h2>
+          <label class="settings-label">Text size</label>
+          <div class="text-size-control">
+            <input type="range" id="font-size-slider" min="10" max="20" value="14">
+            <span id="font-size-value">14px</span>
+          </div>
+          <div class="editor-toggles">
+            <label class="toggle-row">
+              <input type="checkbox" id="line-wrapping-toggle" checked>
+              <span>Wrap lines</span>
+            </label>
+            <label class="toggle-row">
+              <input type="checkbox" id="use-tabs-toggle">
+              <span>Indent with tabs</span>
+            </label>
+          </div>
+          <label class="settings-label">Tab size</label>
+          <div id="tab-size-options" class="tab-size-options">
+            <button class="tab-size-btn active" data-size="2">2</button>
+            <button class="tab-size-btn" data-size="4">4</button>
+            <button class="tab-size-btn" data-size="8">8</button>
+          </div>
+        </div>
+        <div id="panel-appearance" class="settings-panel">
+          <h2 class="settings-panel-title">Appearance</h2>
+          <label class="settings-label">Theme</label>
+          <div id="theme-options">
+            <div class="theme-option" data-theme="system">
+              <div class="theme-radio"></div>
+              <div class="theme-info">
+                <div class="theme-name">System</div>
+                <div class="theme-desc">Follow OS light/dark setting</div>
+              </div>
+            </div>
+            <div class="theme-option" data-theme="original">
+              <div class="theme-radio"></div>
+              <div class="theme-info">
+                <div class="theme-name">Original</div>
+                <div class="theme-desc">Warm dark with amber accents</div>
+              </div>
+            </div>
+            <div class="theme-option" data-theme="yellow-pad">
+              <div class="theme-radio"></div>
+              <div class="theme-info">
+                <div class="theme-name">Yellow Pad</div>
+                <div class="theme-desc">Warm light, legal pad aesthetic</div>
+              </div>
+            </div>
+            <div class="theme-option" data-theme="classic-light">
+              <div class="theme-radio"></div>
+              <div class="theme-info">
+                <div class="theme-name">Classic Light</div>
+                <div class="theme-desc">Clean light with blue accents</div>
+              </div>
+            </div>
+            <div class="theme-option" data-theme="classic-dark">
+              <div class="theme-radio"></div>
+              <div class="theme-info">
+                <div class="theme-name">Classic Dark</div>
+                <div class="theme-desc">Standard dark with blue accents</div>
+              </div>
+            </div>
+            <div class="theme-option" data-theme="antropique">
+              <div class="theme-radio"></div>
+              <div class="theme-info">
+                <div class="theme-name">Antropique</div>
+                <div class="theme-desc">Warm dark, Anthropic Claude homage</div>
+              </div>
+            </div>
+            <div class="theme-option" data-theme="true-dark">
+              <div class="theme-radio"></div>
+              <div class="theme-info">
+                <div class="theme-name">True Dark</div>
+                <div class="theme-desc">OLED black</div>
+              </div>
+            </div>
+          </div>
+          <label class="settings-label">Font</label>
+          <div id="font-family-options" class="font-options">
+            <div class="font-option active" data-font="system">
+              <div class="font-radio"></div>
+              <div class="font-info">
+                <div class="font-name">System</div>
+                <div class="font-preview" style="font-family: -apple-system, BlinkMacSystemFont, sans-serif">The quick brown fox</div>
+              </div>
+            </div>
+            <div class="font-option" data-font="mono">
+              <div class="font-radio"></div>
+              <div class="font-info">
+                <div class="font-name">Monospace</div>
+                <div class="font-preview" style="font-family: ui-monospace, 'SF Mono', Menlo, monospace">The quick brown fox</div>
+              </div>
+            </div>
+            <div class="font-option" data-font="serif">
+              <div class="font-radio"></div>
+              <div class="font-info">
+                <div class="font-name">Serif</div>
+                <div class="font-preview" style="font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif">The quick brown fox</div>
+              </div>
+            </div>
+            <div class="font-option" data-font="literata">
+              <div class="font-radio"></div>
+              <div class="font-info">
+                <div class="font-name">Literata</div>
+                <div class="font-preview" style="font-family: 'Literata', Georgia, serif">The quick brown fox</div>
+              </div>
+            </div>
+            <div class="font-option" data-font="charter">
+              <div class="font-radio"></div>
+              <div class="font-info">
+                <div class="font-name">Charter</div>
+                <div class="font-preview" style="font-family: Charter, 'Bitstream Charter', Cambria, serif">The quick brown fox</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   <footer id="status-bar">
     <div id="status-left">
@@ -124,168 +304,6 @@
     </div>
     <span id="word-count"></span>
   </footer>
-
-  <div id="settings-overlay" class="modal-overlay hidden">
-    <div id="settings-modal">
-      <div class="settings-header">
-        <h2>Settings</h2>
-        <button id="settings-close" class="modal-close">&times;</button>
-      </div>
-      <div class="settings-content">
-        <nav class="settings-nav">
-          <button class="settings-tab active" data-tab="repositories">Repositories</button>
-          <button class="settings-tab" data-tab="git">Git</button>
-          <button class="settings-tab" data-tab="editor">Editor</button>
-          <button class="settings-tab" data-tab="appearance">Appearance</button>
-        </nav>
-        <div class="settings-panels">
-          <div id="panel-repositories" class="settings-panel active">
-            <div id="vault-list"></div>
-            <div id="vault-actions">
-              <div id="add-repo-dropdown" class="add-repo-dropdown">
-                <button id="add-repo-btn">
-                  + Add Repository
-                  <svg class="dropdown-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
-                </button>
-                <div id="add-repo-menu" class="dropdown-menu hidden">
-                  <button class="dropdown-item" data-action="local">Add Local Folder</button>
-                  <button class="dropdown-item" data-action="clone">Clone Repository</button>
-                  <button class="dropdown-item" data-action="create">Create Repository</button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div id="panel-git" class="settings-panel">
-            <div class="settings-row">
-              <label class="settings-toggle">
-                <input type="checkbox" id="auto-commit-toggle" checked>
-                <span class="toggle-slider"></span>
-                <span class="toggle-label">Auto-commit</span>
-              </label>
-              <p class="settings-hint">Automatically commit after periods of inactivity</p>
-            </div>
-            <div class="setting-row">
-              <div class="setting-label">
-                <div class="setting-title">Team repository</div>
-                <div class="setting-description">Show author names in commits and notes</div>
-              </div>
-              <select id="team-override-select" class="setting-select">
-                <option value="auto">Auto</option>
-                <option value="on">On</option>
-                <option value="off">Off</option>
-              </select>
-            </div>
-          </div>
-          <div id="panel-editor" class="settings-panel">
-            <label class="settings-label">Text size</label>
-            <div class="text-size-control">
-              <input type="range" id="font-size-slider" min="10" max="20" value="14">
-              <span id="font-size-value">14px</span>
-            </div>
-
-            <div class="editor-toggles">
-              <label class="toggle-row">
-                <input type="checkbox" id="line-wrapping-toggle" checked>
-                <span>Wrap lines</span>
-              </label>
-              <label class="toggle-row">
-                <input type="checkbox" id="use-tabs-toggle">
-                <span>Indent with tabs</span>
-              </label>
-            </div>
-
-            <label class="settings-label">Tab size</label>
-            <div id="tab-size-options" class="tab-size-options">
-              <button class="tab-size-btn active" data-size="2">2</button>
-              <button class="tab-size-btn" data-size="4">4</button>
-              <button class="tab-size-btn" data-size="8">8</button>
-            </div>
-          </div>
-          <div id="panel-appearance" class="settings-panel">
-            <label class="settings-label">Theme</label>
-            <div id="theme-options">
-              <div class="theme-option" data-theme="system">
-                <div class="theme-radio"></div>
-                <div class="theme-info">
-                  <div class="theme-name">System</div>
-                  <div class="theme-desc">Follow OS light/dark setting</div>
-                </div>
-              </div>
-              <div class="theme-option" data-theme="original">
-                <div class="theme-radio"></div>
-                <div class="theme-info">
-                  <div class="theme-name">Original</div>
-                  <div class="theme-desc">Warm dark with amber accents</div>
-                </div>
-              </div>
-              <div class="theme-option" data-theme="yellow-pad">
-                <div class="theme-radio"></div>
-                <div class="theme-info">
-                  <div class="theme-name">Yellow Pad</div>
-                  <div class="theme-desc">Warm light, legal pad aesthetic</div>
-                </div>
-              </div>
-              <div class="theme-option" data-theme="classic-light">
-                <div class="theme-radio"></div>
-                <div class="theme-info">
-                  <div class="theme-name">Classic Light</div>
-                  <div class="theme-desc">Clean light with blue accents</div>
-                </div>
-              </div>
-              <div class="theme-option" data-theme="classic-dark">
-                <div class="theme-radio"></div>
-                <div class="theme-info">
-                  <div class="theme-name">Classic Dark</div>
-                  <div class="theme-desc">Standard dark with blue accents</div>
-                </div>
-              </div>
-              <div class="theme-option" data-theme="antropique">
-                <div class="theme-radio"></div>
-                <div class="theme-info">
-                  <div class="theme-name">Antropique</div>
-                  <div class="theme-desc">Warm dark, Anthropic Claude homage</div>
-                </div>
-              </div>
-              <div class="theme-option" data-theme="true-dark">
-                <div class="theme-radio"></div>
-                <div class="theme-info">
-                  <div class="theme-name">True Dark</div>
-                  <div class="theme-desc">OLED black</div>
-                </div>
-              </div>
-            </div>
-
-            <label class="settings-label">Font</label>
-            <div id="font-family-options" class="font-options">
-              <div class="font-option active" data-font="system">
-                <div class="font-radio"></div>
-                <div class="font-info">
-                  <div class="font-name">System</div>
-                  <div class="font-preview" style="font-family: -apple-system, BlinkMacSystemFont, sans-serif">The quick brown fox</div>
-                </div>
-              </div>
-              <div class="font-option" data-font="mono">
-                <div class="font-radio"></div>
-                <div class="font-info">
-                  <div class="font-name">Monospace</div>
-                  <div class="font-preview" style="font-family: ui-monospace, 'SF Mono', Menlo, monospace">The quick brown fox</div>
-                </div>
-              </div>
-              <div class="font-option" data-font="serif">
-                <div class="font-radio"></div>
-                <div class="font-info">
-                  <div class="font-name">Serif</div>
-                  <div class="font-preview" style="font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif">The quick brown fox</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <div id="clone-overlay" class="modal-overlay hidden">
     <div id="clone-modal">

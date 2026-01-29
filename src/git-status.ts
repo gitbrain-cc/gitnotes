@@ -33,6 +33,12 @@ function formatRelativeTime(dateStr: string): string {
   return date.toLocaleDateString();
 }
 
+let cachedIsTeam = false;
+
+export function isTeamRepo(): boolean {
+  return cachedIsTeam;
+}
+
 async function getRepoStatus(): Promise<RepoStatus> {
   return await invoke('get_repo_status');
 }
@@ -81,6 +87,7 @@ function renderStatus(status: RepoStatus): void {
 export async function refreshGitStatus(): Promise<void> {
   try {
     const status = await getRepoStatus();
+    cachedIsTeam = status.is_team;
     renderStatus(status);
   } catch (err) {
     console.error('Failed to get repo status:', err);

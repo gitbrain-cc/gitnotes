@@ -49,6 +49,7 @@ interface Settings {
 }
 
 let isOpen = false;
+let previousMode: 'notes' | 'git' = 'notes';
 let currentSettings: Settings | null = null;
 
 export async function getSettings(): Promise<Settings> {
@@ -91,6 +92,8 @@ const FONT_STACKS: Record<string, string> = {
   system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   mono: 'ui-monospace, "SF Mono", Menlo, Monaco, monospace',
   serif: '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif',
+  literata: '"Literata", Georgia, serif',
+  charter: 'Charter, "Bitstream Charter", "Sitka Text", Cambria, serif',
 };
 
 export function applyEditorSettings(settings: EditorSettings): void {
@@ -235,21 +238,49 @@ async function renderVaultList() {
   });
 }
 
-export function openSettings() {
-  const overlay = document.getElementById('settings-overlay');
-  if (overlay) {
-    overlay.classList.remove('hidden');
-    isOpen = true;
-    loadSettingsData();
-  }
+export async function openSettings() {
+  if (isOpen) return;
+
+  const settingsView = document.getElementById('settings-view');
+  if (!settingsView) return;
+
+  // Remember which mode we came from
+  const { isGitModeOpen } = await import('./git-view');
+  previousMode = isGitModeOpen() ? 'git' : 'notes';
+
+  // Hide everything
+  document.getElementById('top-bar')?.classList.add('hidden');
+  document.getElementById('notes-mode')?.classList.add('hidden');
+  document.getElementById('git-view')?.classList.add('hidden');
+  document.getElementById('status-bar')?.classList.add('hidden');
+  document.body.classList.add('settings-active');
+
+  // Show settings
+  settingsView.classList.remove('hidden');
+  isOpen = true;
+  loadSettingsData();
 }
 
 export function closeSettings() {
-  const overlay = document.getElementById('settings-overlay');
-  if (overlay) {
-    overlay.classList.add('hidden');
-    isOpen = false;
+  if (!isOpen) return;
+
+  const settingsView = document.getElementById('settings-view');
+  if (settingsView) {
+    settingsView.classList.add('hidden');
   }
+
+  // Restore previous mode
+  document.getElementById('top-bar')?.classList.remove('hidden');
+  document.getElementById('status-bar')?.classList.remove('hidden');
+  document.body.classList.remove('settings-active');
+
+  if (previousMode === 'git') {
+    document.getElementById('git-view')?.classList.remove('hidden');
+  } else {
+    document.getElementById('notes-mode')?.classList.remove('hidden');
+  }
+
+  isOpen = false;
 }
 
 export function isSettingsOpen(): boolean {
@@ -295,26 +326,18 @@ async function loadSettingsData() {
 }
 
 export function initSettings() {
-  const closeBtn = document.getElementById('settings-close');
-  const overlay = document.getElementById('settings-overlay');
+  const backBtn = document.getElementById('settings-back');
   const addRepoBtn = document.getElementById('add-repo-btn');
   const addRepoDropdown = document.getElementById('add-repo-dropdown');
   const addRepoMenu = document.getElementById('add-repo-menu');
-  const tabs = document.querySelectorAll('.settings-tab');
+  const tabs = document.querySelectorAll('#settings-nav li.settings-tab');
 
   // Listen for menu event (Cmd+, or GitNotes > Settings)
   listen('open-settings', () => {
     openSettings();
   });
 
-  closeBtn?.addEventListener('click', closeSettings);
-
-  // Close on backdrop click
-  overlay?.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      closeSettings();
-    }
-  });
+  backBtn?.addEventListener('click', closeSettings);
 
   // Close on Escape - close modals first, then dropdown, then settings
   document.addEventListener('keydown', (e) => {

@@ -37,6 +37,7 @@ let dragState: {
   holdTimer: number | null;
 } | null = null;
 let skipNextSectionClick = false;
+let renameAttempted = false;
 
 async function handleDeleteNote(note: Note) {
   try {
@@ -70,6 +71,7 @@ function startRename(note: Note, li: HTMLElement) {
   li.appendChild(input);
   input.focus();
   input.select();
+  renameAttempted = true;
 
   const finishRename = async () => {
     const newName = input.value.trim();
@@ -523,6 +525,12 @@ export async function selectNote(note: Note, matchLine?: number, searchTerm?: st
     });
   }
 
+  // Reset rename guard when switching to a different note
+  const currentNote = getCurrentNote();
+  if (currentNote && currentNote.path !== note.path) {
+    renameAttempted = false;
+  }
+
   // Save as last opened note for current section (fire-and-forget)
   if (currentSection) {
     invoke('set_last_note', { sectionPath: currentSection.path, notePath: note.path });
@@ -549,8 +557,8 @@ export async function selectNote(note: Note, matchLine?: number, searchTerm?: st
 
     setStatus('Ready');
 
-    // Auto-trigger rename for Untitled notes
-    if (note.name === 'Untitled' || note.name.startsWith('Untitled ')) {
+    // Auto-trigger rename for Untitled notes (only on first select, not after rename dismissal)
+    if (!renameAttempted && (note.name === 'Untitled' || note.name.startsWith('Untitled '))) {
       const li = document.querySelector(`[data-path="${note.path}"]`) as HTMLElement;
       if (li && !li.querySelector('input')) {
         startRename(note, li);

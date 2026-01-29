@@ -1,14 +1,28 @@
-import { EditorView, keymap, ViewPlugin, ViewUpdate, Decoration, DecorationSet, WidgetType } from '@codemirror/view';
-import { EditorState, Compartment } from '@codemirror/state';
+import { EditorView, keymap, ViewPlugin, ViewUpdate, Decoration, DecorationSet, WidgetType, drawSelection } from '@codemirror/view';
+import { EditorState, EditorSelection, Compartment } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { syntaxHighlighting, defaultHighlightStyle, indentUnit } from '@codemirror/language';
+import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { syntaxHighlighting, defaultHighlightStyle, HighlightStyle, indentUnit } from '@codemirror/language';
+import { tags } from '@lezer/highlight';
 import { scheduleSave } from './main';
 import { FrontMatter, parseFrontMatter, serializeFrontMatter } from './frontmatter';
 import { livePreview } from './editor/live-preview';
 
 let editorView: EditorView | null = null;
 let currentFrontMatter: FrontMatter = {};
+let tabCursorTimeout: number | null = null;
+
+function hideCursorDuringTab(view: EditorView) {
+  const cursorLayer = view.dom.querySelector('.cm-cursorLayer') as HTMLElement | null;
+  if (cursorLayer) {
+    cursorLayer.style.opacity = '0';
+    if (tabCursorTimeout) clearTimeout(tabCursorTimeout);
+    tabCursorTimeout = window.setTimeout(() => {
+      cursorLayer.style.opacity = '';
+      tabCursorTimeout = null;
+    }, 150);
+  }
+}
 
 // Compartments for runtime reconfiguration
 const lineWrappingCompartment = new Compartment();
@@ -74,10 +88,13 @@ const theme = EditorView.theme({
     color: 'var(--text-secondary)',
   },
   '.cm-cursor': {
-    borderLeftColor: 'var(--text-primary)',
+    borderLeft: 'none',
+    borderBottom: '2px solid var(--accent-color)',
+    width: '0.6em',
+    marginLeft: '0',
   },
   '.selection-bracket': {
-    color: '#e85d4c',
+    color: 'var(--accent-color)',
     fontWeight: 'bold',
   },
 });
@@ -142,8 +159,51 @@ export function initEditor() {
       extensions: [
         history(),
         markdown(),
-        syntaxHighlighting(defaultHighlightStyle),
-        keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap]),
+        drawSelection({ cursorBlinkRate: 1200 }),
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        syntaxHighlighting(HighlightStyle.define([
+          { tag: tags.meta, color: 'var(--text-secondary)' },
+        ])),
+        keymap.of([
+          {
+            key: 'Tab',
+            run: (view) => {
+              hideCursorDuringTab(view);
+              const { state } = view;
+              const indent = state.facet(indentUnit);
+              view.dispatch(state.changeByRange(range => {
+                const line = state.doc.lineAt(range.from);
+                return {
+                  changes: { from: line.from, insert: indent },
+                  range: EditorSelection.cursor(range.from + indent.length),
+                };
+              }));
+              return true;
+            },
+          },
+          {
+            key: 'Shift-Tab',
+            run: (view) => {
+              hideCursorDuringTab(view);
+              const { state } = view;
+              const indent = state.facet(indentUnit);
+              view.dispatch(state.changeByRange(range => {
+                const line = state.doc.lineAt(range.from);
+                const lineText = state.doc.sliceString(line.from, line.from + indent.length);
+                if (lineText === indent) {
+                  return {
+                    changes: { from: line.from, to: line.from + indent.length },
+                    range: EditorSelection.cursor(Math.max(line.from, range.from - indent.length)),
+                  };
+                }
+                return { range };
+              }));
+              return true;
+            },
+          },
+          ...defaultKeymap,
+          ...historyKeymap,
+        ]),
         theme,
         selectionBrackets,
         livePreview,

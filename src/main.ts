@@ -7,7 +7,7 @@ import {
 import { recordEdit, recordSave, recordCommit, startEvalLoop, triggerImmediateCommit } from './commit-engine';
 import { initSearchBar, openSearchBar, loadAllNotes, closeSearchBar, isSearchBarOpen, addRecentFile } from './search-bar';
 import { parseFrontMatter, serializeFrontMatter, FrontMatter } from './frontmatter';
-import { initGitStatus, refreshGitStatus } from './git-status';
+import { initGitStatus, refreshGitStatus, isTeamRepo } from './git-status';
 import { initSettings, isSettingsOpen, closeSettings, getTheme, applyTheme, getEditorSettings, applyEditorSettings, getAutoCommit } from './settings';
 import { initGitView, isGitModeOpen, exitGitMode } from './git-view';
 import { checkOnboarding, initOnboarding, showOnboarding } from './onboarding';
@@ -170,6 +170,7 @@ export function updateWordCount() {
 // Format a date as relative time
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return null as unknown as string;
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffSec = Math.floor(diffMs / 1000);
@@ -186,11 +187,12 @@ function formatRelativeTime(dateStr: string): string {
   if (diffWeek < 4) return `${diffWeek}w ago`;
   if (diffMonth < 12) return `${diffMonth}mo ago`;
 
-  return date.toLocaleDateString();
+  const diffYear = Math.floor(diffDay / 365);
+  return `${diffYear}y ago`;
 }
 
 // Build the modified info string based on git status
-function buildModifiedInfo(gitInfo: GitInfo): string | null {
+function buildModifiedInfo(gitInfo: GitInfo, createdDate: string | null): string | null {
   if (!gitInfo.is_git_repo) {
     return null;
   }
@@ -203,12 +205,34 @@ function buildModifiedInfo(gitInfo: GitInfo): string | null {
     return 'Modified · not committed';
   }
 
-  if (gitInfo.last_commit_date && gitInfo.last_commit_author) {
+  if (gitInfo.last_commit_date) {
+    // If created and last commit are the same day, don't show "Edited"
+    if (createdDate && isSameDay(createdDate, gitInfo.last_commit_date)) {
+      return null;
+    }
+
     const relativeTime = formatRelativeTime(gitInfo.last_commit_date);
-    return `${gitInfo.last_commit_author}, ${relativeTime}`;
+    if (isTeamRepo() && gitInfo.last_commit_author) {
+      return `Edited ${relativeTime} by ${gitInfo.last_commit_author}`;
+    }
+    return `Edited ${relativeTime}`;
   }
 
   return null;
+}
+
+function formatAbsoluteDate(dateStr: string): string | null {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function isSameDay(dateA: string, dateB: string): boolean {
+  const a = new Date(dateA);
+  const b = new Date(dateB);
+  return a.getFullYear() === b.getFullYear()
+    && a.getMonth() === b.getMonth()
+    && a.getDate() === b.getDate();
 }
 
 // Load note and update header
@@ -240,9 +264,9 @@ export async function loadNoteWithHeader(note: Note) {
   // Build header data
   const title = note.name; // filename without .md
   const createdDate = currentFrontMatter.created
-    ? formatRelativeTime(currentFrontMatter.created)
+    ? formatAbsoluteDate(currentFrontMatter.created)
     : null;
-  const modifiedInfo = buildModifiedInfo(gitInfo);
+  const modifiedInfo = buildModifiedInfo(gitInfo, currentFrontMatter.created ?? null);
 
   // Load content into editor (full content with front matter - editor will hide it)
   const fullContent = serializeFrontMatter(currentFrontMatter, currentBody);
@@ -263,9 +287,9 @@ async function refreshHeader() {
 
   const gitInfo = await getGitInfo(currentNote.path);
   const createdDate = currentFrontMatter.created
-    ? formatRelativeTime(currentFrontMatter.created)
+    ? formatAbsoluteDate(currentFrontMatter.created)
     : null;
-  const modifiedInfo = buildModifiedInfo(gitInfo);
+  const modifiedInfo = buildModifiedInfo(gitInfo, currentFrontMatter.created ?? null);
 
   updateHeaderData({
     title: currentNote.name,
@@ -281,7 +305,6 @@ export function scheduleSave() {
 
   setStatus('Modified...');
   recordEdit(getCursorPosition(), getScrollTop());
-  updateWordCount();
 
   saveTimeout = window.setTimeout(async () => {
     if (currentNote) {
@@ -306,7 +329,6 @@ export function scheduleSave() {
         // Just record the save, it will evaluate and commit when ready
 
         await refreshHeader();
-        await refreshGitStatus();
       } catch (err) {
         setStatus('Error saving');
         console.error('Save error:', err);

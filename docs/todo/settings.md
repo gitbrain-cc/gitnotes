@@ -1,5 +1,16 @@
 # Settings TODO
 
+## Layout
+
+- [x] Full-page settings view (replaced modal)
+- [ ] Polish full-page settings UI
+  - [ ] Hide title bar / integrate with sidebar header
+  - [ ] Refine spacing and alignment across all panels
+  - [ ] Status bar should be hidden in settings mode
+  - [ ] Test all panels render correctly (repos, git, editor, appearance)
+  - [ ] Verify Escape key chain (clone modal > create modal > dropdown > settings)
+  - [ ] Verify back button returns to correct mode (notes or git)
+
 ## Notes Directory
 
 - [x] Support multiple notes directories (multi-vault)

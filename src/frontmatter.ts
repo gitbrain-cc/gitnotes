@@ -28,7 +28,13 @@ export function parseFrontMatter(content: string): ParsedNote {
     if (colonIndex === -1) continue;
 
     const key = line.slice(0, colonIndex).trim();
-    const value = line.slice(colonIndex + 1).trim();
+    let value = line.slice(colonIndex + 1).trim();
+
+    // Strip surrounding quotes (YAML quoted strings)
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
 
     if (key && value) {
       frontmatter[key] = value;

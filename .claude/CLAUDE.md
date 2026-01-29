@@ -21,7 +21,7 @@ npm run tauri build # Release build
 | `src/editor/live-preview.ts` | Inline markdown rendering |
 | `src/search-bar.ts` | Unified search UI |
 | `src/git-status.ts` | Git integration UI |
-| `src/settings.ts` | Settings modal |
+| `src/settings.ts` | Settings full-page view (third view mode alongside notes/git) |
 | `src/contextmenu.ts` | Right-click menus |
 
 ## Key Patterns
