@@ -1,0 +1,11 @@
+include:
+  - index.html
+  - screenshot.png
+  - favicon.png
+
+exclude:
+  - "*.md"
+  - plans/
+  - todo/
+  - usage/
+  - design/
