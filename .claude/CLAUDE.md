@@ -35,11 +35,11 @@ npm run tauri build # Release build
 
 | Concept | UI Term | Code Term | Rationale |
 |---------|---------|-----------|-----------|
-| Top-level container | **Repository** | `Vault` | Git-native app; "Repository" in UI aligns with Git fundamentals |
+| Top-level container | **Brain** | `Vault` | "Brain" in UI aligns with GitBrain ecosystem |
 | Individual markdown file | **Note** | `Note` | Consistent everywhere, matches app name "GitNotes" |
 | Folder grouping | **Section** | `Section` | Consistent everywhere |
 
-**Note:** Only "Repository" vs `Vault` differs between UI and code. Use "Repository" in user-facing strings, `Vault` in code.
+**Note:** Only "Brain" vs `Vault` differs between UI and code. Use "Brain" in user-facing strings, `Vault` in code.
 
 ## Documentation
 

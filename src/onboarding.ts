@@ -57,9 +57,9 @@ export function showOnboarding(): void {
     const errorBanner = document.getElementById('onboarding-error');
     if (errorBanner) {
       errorBanner.innerHTML = `
-        <strong>Repository not found:</strong> "${invalidVaultInfo.name}"
+        <strong>Brain not found:</strong> "${invalidVaultInfo.name}"
         <code title="${invalidVaultInfo.path}">${invalidVaultInfo.path}</code>
-        Please select or create a new repository.
+        Please select or create a new brain.
       `;
       errorBanner.classList.remove('hidden');
     }

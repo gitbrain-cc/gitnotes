@@ -2,6 +2,7 @@
 import { generateCommitMessage, recordCommit, hasUncommittedChanges } from './commit-engine';
 import { gitCommit, flashCommitted, getCurrentNote } from './main';
 import { refreshGitStatus } from './git-status';
+import { isGitModeOpen, enterGitMode } from './git-view';
 
 let isOpen = false;
 
@@ -50,6 +51,9 @@ export async function confirmCommit(): Promise<void> {
     recordCommit();
     flashCommitted();
     await refreshGitStatus();
+    if (isGitModeOpen()) {
+      await enterGitMode();
+    }
   } catch {
     // Commit failed
   }

@@ -27,12 +27,49 @@ function hideCursorDuringTab(view: EditorView) {
 // Compartments for runtime reconfiguration
 const lineWrappingCompartment = new Compartment();
 const tabSizeCompartment = new Compartment();
+const cursorStyleCompartment = new Compartment();
 
 // Header data that will be displayed
 export interface HeaderData {
   title: string;
   createdDate: string | null;
   modifiedInfo: string | null;
+}
+
+// Cursor glyphs — ⌐ family variants (see docs/design/cursor.md)
+const CURSOR_GLYPHS: Record<string, { glyph: string; fontSize: string; bottom: string; left: string; extra?: string }> = {
+  line: { glyph: '|', fontSize: '1em', bottom: '0.75em', left: '-0.3em', extra: 'font-weight: 900; -webkit-text-stroke: 0.5px var(--accent-color);' },
+  block: { glyph: '⌐', fontSize: '1.2em', bottom: '0', left: '0' },
+  underline: { glyph: '¬', fontSize: '1.2em', bottom: '0', left: '-0.15em' },
+  caret: { glyph: '^', fontSize: '0.9em', bottom: '-0.3em', left: '-0.5em' },
+  underscore: { glyph: '_', fontSize: '1em', bottom: '0.55em', left: '0' },
+  dot: { glyph: '°', fontSize: '1em', bottom: '-0.25em', left: '-0.1em' },
+};
+
+let cursorStyleElement: HTMLStyleElement | null = null;
+
+function injectCursorStyles(style: string = 'block') {
+  const config = CURSOR_GLYPHS[style] || CURSOR_GLYPHS.block;
+  const css = `
+    .cm-cursor::after {
+      content: '${config.glyph}';
+      color: var(--accent-color);
+      position: absolute;
+      bottom: ${config.bottom};
+      left: ${config.left};
+      font-size: ${config.fontSize};
+      line-height: 0;
+      pointer-events: none;
+      ${config.extra || ''}
+    }
+  `;
+  if (cursorStyleElement) {
+    cursorStyleElement.textContent = css;
+  } else {
+    cursorStyleElement = document.createElement('style');
+    cursorStyleElement.textContent = css;
+    document.head.appendChild(cursorStyleElement);
+  }
 }
 
 const theme = EditorView.theme({
@@ -89,8 +126,8 @@ const theme = EditorView.theme({
   },
   '.cm-cursor': {
     borderLeft: 'none',
-    borderBottom: '2px solid var(--accent-color)',
-    width: '0.6em',
+    borderBottom: 'none',
+    width: '0',
     marginLeft: '0',
   },
   '.selection-bracket': {
@@ -140,6 +177,8 @@ const selectionBrackets = ViewPlugin.fromClass(class {
 export function initEditor() {
   const container = document.getElementById('editor');
   if (!container) return;
+
+  injectCursorStyles();
 
   // Clean up existing editor (for hot reload)
   if (editorView) {
@@ -210,6 +249,7 @@ export function initEditor() {
         updateListener,
         lineWrappingCompartment.of(EditorView.lineWrapping),
         tabSizeCompartment.of([indentUnit.of('  '), EditorState.tabSize.of(2)]),
+        cursorStyleCompartment.of(drawSelection({ cursorBlinkRate: 1200 })),
       ],
     }),
     parent: container,
@@ -225,6 +265,8 @@ interface EditorSettingsForReconfigure {
   line_wrapping: boolean;
   tab_size: number;
   use_tabs: boolean;
+  cursor_style: string;
+  cursor_blink: boolean;
 }
 
 export function reconfigureEditor(settings: EditorSettingsForReconfigure): void {
@@ -244,6 +286,16 @@ export function reconfigureEditor(settings: EditorSettingsForReconfigure): void 
       indentUnit.of(indent),
       EditorState.tabSize.of(settings.tab_size),
     ])
+  );
+
+  // Cursor glyph
+  injectCursorStyles(settings.cursor_style || 'block');
+
+  // Cursor blink
+  effects.push(
+    cursorStyleCompartment.reconfigure(
+      drawSelection({ cursorBlinkRate: settings.cursor_blink ? 1200 : 0 })
+    )
   );
 
   editorView.dispatch({ effects });

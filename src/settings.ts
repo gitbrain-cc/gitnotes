@@ -40,6 +40,8 @@ interface EditorSettings {
   line_wrapping: boolean;
   tab_size: number;
   use_tabs: boolean;
+  cursor_style: string;
+  cursor_blink: boolean;
 }
 
 interface Settings {
@@ -51,6 +53,7 @@ interface Settings {
 let isOpen = false;
 let previousMode: 'notes' | 'git' = 'notes';
 let currentSettings: Settings | null = null;
+let selectedBrainId: string | null = null;
 
 export async function getSettings(): Promise<Settings> {
   return await invoke('get_settings');
@@ -143,8 +146,19 @@ function truncatePath(path: string, maxLength: number = 35): string {
   return result;
 }
 
-async function renderVaultList() {
-  const container = document.getElementById('vault-list');
+const PROVIDER_ICONS: Record<string, string> = {
+  'github.com': '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>',
+  'gitlab.com': '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M23.955 13.587l-1.342-4.135-2.664-8.189a.455.455 0 00-.867 0L16.418 9.45H7.582L4.918 1.263a.455.455 0 00-.867 0L1.387 9.452.045 13.587a.924.924 0 00.331 1.023L12 23.054l11.624-8.443a.92.92 0 00.331-1.024"/></svg>',
+  'bitbucket.org': '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M.778 1.213a.768.768 0 00-.768.892l3.263 19.81c.084.5.515.868 1.022.873H19.95a.772.772 0 00.77-.646l3.27-20.03a.768.768 0 00-.768-.891zM14.52 15.53H9.522L8.17 8.466h7.561z"/></svg>',
+};
+
+function providerIcon(provider: string): string {
+  const icon = PROVIDER_ICONS[provider];
+  return icon ? `${icon} ` : `${provider} · `;
+}
+
+async function renderBrainsList() {
+  const container = document.getElementById('brains-list');
   if (!container || !currentSettings) return;
 
   // Fetch stats for all vaults in parallel
@@ -160,81 +174,160 @@ async function renderVaultList() {
     })
   );
 
+  // Auto-select if nothing selected or selected brain no longer exists
+  if (!selectedBrainId || !currentSettings.vaults.find(v => v.id === selectedBrainId)) {
+    selectedBrainId = currentSettings.active_vault || currentSettings.vaults[0]?.id || null;
+  }
+
   container.innerHTML = currentSettings.vaults.map(vault => {
-    const isActive = vault.id === currentSettings!.active_vault ||
-                     (!currentSettings!.active_vault && currentSettings!.vaults[0]?.id === vault.id);
+    const isSelected = vault.id === selectedBrainId;
+    const isActive = vault.id === currentSettings!.active_vault;
     const stats = statsMap.get(vault.id);
-    const statsLine = stats
-      ? `${stats.section_count} sections · ${stats.note_count} notes`
-      : '';
-    const lastModified = stats?.last_modified || '';
 
-    // Show git provider/repo if available, otherwise show truncated local path
-    const locationLine = stats?.git_provider && stats?.git_repo
-      ? `${stats.git_provider} · ${stats.git_repo}`
-      : truncatePath(vault.path, 50);
+    // Show provider icon + repo, or truncated path
+    const subtitle = stats?.git_provider && stats?.git_repo
+      ? `${providerIcon(stats.git_provider)}${stats.git_repo}`
+      : truncatePath(vault.path, 30);
 
-    const gitBranch = stats?.git_branch
-      ? `<span class="vault-git"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><line x1="1.05" y1="12" x2="7" y2="12"></line><line x1="17.01" y1="12" x2="22.96" y2="12"></line></svg>${stats.git_branch}</span>`
+    const activeDot = isActive
+      ? '<span class="brain-active-dot"></span>'
       : '';
 
     return `
-      <div class="vault-item ${isActive ? 'active' : ''}" data-vault-id="${vault.id}">
-        <div class="vault-radio"></div>
-        <div class="vault-info">
-          <div class="vault-header">
-            <div class="vault-name">${vault.name}</div>
-            ${gitBranch}
-          </div>
-          <div class="vault-path">${locationLine}</div>
-          <div class="vault-stats">
-            <span class="vault-counts">${statsLine}</span>
-            ${lastModified ? `<span class="vault-modified">${lastModified}</span>` : ''}
-          </div>
-        </div>
-        <button class="vault-remove" data-vault-id="${vault.id}" title="Remove repository">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 6h18"></path>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
-            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-          </svg>
-        </button>
-      </div>
+      <li class="${isSelected ? 'active' : ''}" data-vault-id="${vault.id}">
+        <div class="brain-name-row"><span>${vault.name}</span>${activeDot}</div>
+        <div class="brain-subtitle">${subtitle}</div>
+      </li>
     `;
   }).join('');
 
-  // Add click handlers
-  container.querySelectorAll('.vault-item').forEach(item => {
-    item.addEventListener('click', async (e) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('.vault-remove')) return;
-
+  // Add click handlers — selecting only, no vault activation
+  container.querySelectorAll('li').forEach(item => {
+    item.addEventListener('click', () => {
       const vaultId = item.getAttribute('data-vault-id');
-      if (vaultId && currentSettings) {
-        await setActiveVault(vaultId);
-        currentSettings.active_vault = vaultId;
-        renderVaultList();
-        // Reload app with new vault
-        window.location.reload();
-      }
+      if (!vaultId) return;
+
+      selectedBrainId = vaultId;
+      container.querySelectorAll('li').forEach(li => li.classList.remove('active'));
+      item.classList.add('active');
+      renderBrainDetail();
     });
   });
 
-  container.querySelectorAll('.vault-remove').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const vaultId = (e.currentTarget as HTMLElement).getAttribute('data-vault-id');
-      if (vaultId && currentSettings && currentSettings.vaults.length > 1) {
-        await removeVault(vaultId);
-        currentSettings.vaults = currentSettings.vaults.filter(v => v.id !== vaultId);
-        if (currentSettings.active_vault === vaultId) {
-          currentSettings.active_vault = currentSettings.vaults[0]?.id || null;
-          window.location.reload();
-        } else {
-          await renderVaultList();
-        }
-      }
+  // Render detail for selected brain
+  renderBrainDetail();
+}
+
+async function renderBrainDetail() {
+  const container = document.getElementById('brain-detail');
+  if (!container || !currentSettings || !selectedBrainId) return;
+
+  const vault = currentSettings.vaults.find(v => v.id === selectedBrainId);
+  if (!vault) return;
+
+  let stats: VaultStats | null = null;
+  try {
+    stats = await getVaultStats(vault.id);
+  } catch (e) {
+    console.error('Failed to get stats for vault:', vault.id, e);
+  }
+
+  // Location line
+  const locationLine = stats?.git_provider && stats?.git_repo
+    ? `${providerIcon(stats.git_provider)}${stats.git_repo}`
+    : truncatePath(vault.path, 50);
+
+  // Git branch badge
+  const branchBadge = stats?.git_branch
+    ? `<span class="vault-git"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><line x1="1.05" y1="12" x2="7" y2="12"></line><line x1="17.01" y1="12" x2="22.96" y2="12"></line></svg>${stats.git_branch}</span>`
+    : '';
+
+  // Stats line
+  const statsLine = stats
+    ? `${stats.section_count} sections · ${stats.note_count} notes`
+    : '';
+  const lastModified = stats?.last_modified
+    ? `<span class="vault-modified">${stats.last_modified}</span>`
+    : '';
+
+  // Resolve effective team value: override wins, else detected, else solo
+  const isTeam = vault.is_team_override != null
+    ? vault.is_team_override
+    : (vault.is_team ?? false);
+
+  const canRemove = currentSettings.vaults.length > 1;
+
+  const isActive = vault.id === currentSettings.active_vault;
+
+  container.innerHTML = `
+    <div class="brain-detail-box">
+      <div class="brain-detail-location">${locationLine}${branchBadge}</div>
+      <div class="brain-detail-stats">
+        <span>${statsLine}</span>
+        ${lastModified}
+      </div>
+    </div>
+    <div class="brain-detail-section">
+      <label class="settings-section-label">Brain type</label>
+      <div class="brain-team-options">
+        <div class="team-option ${!isTeam ? 'active' : ''}" data-value="off">
+          <svg class="team-option-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span class="team-option-title">Solo brain</span>
+          <span class="team-option-tagline">Your private notebook</span>
+        </div>
+        <div class="team-option ${isTeam ? 'active' : ''}" data-value="on">
+          <svg class="team-option-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span class="team-option-title">Team brain</span>
+          <span class="team-option-tagline">Collaborate with others</span>
+        </div>
+      </div>
+    </div>
+    <div class="brain-detail-actions">
+      ${!isActive ? `<button class="brain-activate-btn settings-action-btn" data-vault-id="${vault.id}">Set as active</button>` : ''}
+      <button class="brain-remove-btn settings-action-btn danger" ${canRemove ? '' : 'disabled'} data-vault-id="${vault.id}">
+        Remove brain
+      </button>
+    </div>
+  `;
+
+  // Team type radio handlers
+  container.querySelectorAll('.team-option').forEach(opt => {
+    opt.addEventListener('click', async () => {
+      if (!currentSettings) return;
+      const value = opt.getAttribute('data-value');
+      container.querySelectorAll('.team-option').forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+      vault.is_team_override = value === 'on';
+      await invoke('update_settings', { settings: currentSettings });
     });
+  });
+
+  // Set as active handler
+  const activateBtn = container.querySelector('.brain-activate-btn');
+  activateBtn?.addEventListener('click', async () => {
+    const vaultId = activateBtn.getAttribute('data-vault-id');
+    if (vaultId && currentSettings) {
+      await setActiveVault(vaultId);
+      currentSettings.active_vault = vaultId;
+      window.location.reload();
+    }
+  });
+
+  // Remove handler
+  const removeBtn = container.querySelector('.brain-remove-btn');
+  removeBtn?.addEventListener('click', async () => {
+    const vaultId = removeBtn.getAttribute('data-vault-id');
+    if (vaultId && currentSettings && currentSettings.vaults.length > 1) {
+      await removeVault(vaultId);
+      currentSettings.vaults = currentSettings.vaults.filter(v => v.id !== vaultId);
+      if (currentSettings.active_vault === vaultId) {
+        currentSettings.active_vault = currentSettings.vaults[0]?.id || null;
+        window.location.reload();
+      } else {
+        selectedBrainId = currentSettings.vaults[0]?.id || null;
+        await renderBrainsList();
+      }
+    }
   });
 }
 
@@ -289,30 +382,22 @@ export function isSettingsOpen(): boolean {
 
 async function loadSettingsData() {
   currentSettings = await getSettings();
-  await renderVaultList();
 
-  // Update auto-commit toggle
+  // Show brains column if brains tab is active (default)
+  const activeTab = document.querySelector('#settings-nav li.settings-tab.active');
+  if (activeTab?.getAttribute('data-tab') === 'brains') {
+    document.getElementById('settings-brains-list')?.classList.remove('hidden');
+  }
+
+  await renderBrainsList();
+
+  // Update commit mode cards
   if (currentSettings) {
-    const autoCommitToggle = document.getElementById('auto-commit-toggle') as HTMLInputElement;
-    if (autoCommitToggle) {
-      autoCommitToggle.checked = currentSettings.git.auto_commit;
-    }
-
-    // Update team override select
-    const teamSelect = document.getElementById('team-override-select') as HTMLSelectElement;
-    if (teamSelect) {
-      const activeVault = currentSettings.vaults.find(v => v.id === currentSettings!.active_vault)
-        || currentSettings.vaults[0];
-      if (activeVault) {
-        if (activeVault.is_team_override === true) {
-          teamSelect.value = 'on';
-        } else if (activeVault.is_team_override === false) {
-          teamSelect.value = 'off';
-        } else {
-          teamSelect.value = 'auto';
-        }
-      }
-    }
+    const commitOptions = document.querySelectorAll('#commit-mode-options .team-option');
+    const activeValue = currentSettings.git.auto_commit ? 'auto' : 'manual';
+    commitOptions.forEach(opt => {
+      opt.classList.toggle('active', opt.getAttribute('data-value') === activeValue);
+    });
   }
 
   // Update theme selection
@@ -327,9 +412,9 @@ async function loadSettingsData() {
 
 export function initSettings() {
   const backBtn = document.getElementById('settings-back');
-  const addRepoBtn = document.getElementById('add-repo-btn');
-  const addRepoDropdown = document.getElementById('add-repo-dropdown');
-  const addRepoMenu = document.getElementById('add-repo-menu');
+  const addBrainBtn = document.getElementById('add-brain-btn');
+  const addBrainDropdown = document.getElementById('add-brain-dropdown');
+  const addBrainMenu = document.getElementById('add-brain-menu');
   const tabs = document.querySelectorAll('#settings-nav li.settings-tab');
 
   // Listen for menu event (Cmd+, or GitNotes > Settings)
@@ -346,9 +431,9 @@ export function initSettings() {
         closeCloneModal();
       } else if (isCreateModalOpen()) {
         closeCreateModal();
-      } else if (addRepoDropdown?.classList.contains('active')) {
-        addRepoDropdown.classList.remove('active');
-        addRepoMenu?.classList.add('hidden');
+      } else if (addBrainDropdown?.classList.contains('active')) {
+        addBrainDropdown.classList.remove('active');
+        addBrainMenu?.classList.add('hidden');
       } else if (isOpen) {
         closeSettings();
       }
@@ -356,6 +441,8 @@ export function initSettings() {
   });
 
   // Tab switching
+  const brainsListColumn = document.getElementById('settings-brains-list');
+
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
       const tabName = tab.getAttribute('data-tab');
@@ -368,34 +455,41 @@ export function initSettings() {
         panel.classList.remove('active');
       });
       document.getElementById(`panel-${tabName}`)?.classList.add('active');
+
+      // Show/hide brains list column
+      brainsListColumn?.classList.toggle('hidden', tabName !== 'brains');
+
+      if (tabName === 'brains') {
+        renderBrainsList();
+      }
     });
   });
 
-  // Add repo dropdown toggle
-  addRepoBtn?.addEventListener('click', (e) => {
+  // Add brain dropdown toggle
+  addBrainBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
-    const isActive = addRepoDropdown?.classList.toggle('active');
-    addRepoMenu?.classList.toggle('hidden', !isActive);
+    const isActive = addBrainDropdown?.classList.toggle('active');
+    addBrainMenu?.classList.toggle('hidden', !isActive);
   });
 
   // Close dropdown on outside click
   document.addEventListener('click', (e) => {
-    if (addRepoDropdown?.classList.contains('active')) {
-      if (!addRepoDropdown.contains(e.target as Node)) {
-        addRepoDropdown.classList.remove('active');
-        addRepoMenu?.classList.add('hidden');
+    if (addBrainDropdown?.classList.contains('active')) {
+      if (!addBrainDropdown.contains(e.target as Node)) {
+        addBrainDropdown.classList.remove('active');
+        addBrainMenu?.classList.add('hidden');
       }
     }
   });
 
   // Dropdown menu actions
-  addRepoMenu?.querySelectorAll('.dropdown-item').forEach(item => {
+  addBrainMenu?.querySelectorAll('.dropdown-item').forEach(item => {
     item.addEventListener('click', async () => {
       const action = item.getAttribute('data-action');
 
       // Close dropdown
-      addRepoDropdown?.classList.remove('active');
-      addRepoMenu.classList.add('hidden');
+      addBrainDropdown?.classList.remove('active');
+      addBrainMenu.classList.add('hidden');
 
       if (action === 'local') {
         const { vault, error } = await addLocalVault();
@@ -403,7 +497,7 @@ export function initSettings() {
           alert(error);
         } else if (vault && currentSettings) {
           currentSettings.vaults.push(vault);
-          await renderVaultList();
+          await renderBrainsList();
         }
       } else if (action === 'clone') {
         openCloneModal();
@@ -417,38 +511,27 @@ export function initSettings() {
   const onVaultAdded = async (vault: Vault) => {
     if (currentSettings) {
       currentSettings.vaults.push(vault);
-      await renderVaultList();
+      await renderBrainsList();
     }
   };
 
   initCloneModal(onVaultAdded);
   initCreateModal(onVaultAdded);
 
-  // Auto-commit toggle change
-  const autoCommitToggle = document.getElementById('auto-commit-toggle') as HTMLInputElement;
-  autoCommitToggle?.addEventListener('change', async () => {
-    await setAutoCommit(autoCommitToggle.checked);
+  // Commit mode card handlers
+  const commitModeOptions = document.querySelectorAll('#commit-mode-options .team-option');
+  commitModeOptions.forEach(opt => {
+    opt.addEventListener('click', async () => {
+      const value = opt.getAttribute('data-value');
+      commitModeOptions.forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+      await setAutoCommit(value === 'auto');
+    });
   });
 
-  // Team override select
-  const teamSelect = document.getElementById('team-override-select') as HTMLSelectElement;
-  teamSelect?.addEventListener('change', async () => {
-    if (!currentSettings) return;
-    const value = teamSelect.value;
-    const activeVault = currentSettings.vaults.find(v => v.id === currentSettings!.active_vault)
-      || currentSettings.vaults[0];
-    if (!activeVault) return;
 
-    if (value === 'on') {
-      activeVault.is_team_override = true;
-    } else if (value === 'off') {
-      activeVault.is_team_override = false;
-    } else {
-      activeVault.is_team_override = null;
-    }
-
-    await invoke('update_settings', { settings: currentSettings });
-  });
+  // Font family options (used by both theme pairing and font panel)
+  const fontOptions = document.querySelectorAll('.font-option');
 
   // Theme-to-font pairings: selecting certain themes auto-selects a font
   const THEME_FONT_MAP: Record<string, string> = {
@@ -479,12 +562,16 @@ export function initSettings() {
   });
 
   // Editor settings
-  const fontSizeSlider = document.getElementById('font-size-slider') as HTMLInputElement;
-  const fontSizeValue = document.getElementById('font-size-value');
-  const fontOptions = document.querySelectorAll('.font-option');
+  const textSizeCards = document.querySelectorAll('#text-size-options .team-option');
+  const tabSizeCards = document.querySelectorAll('#tab-size-cards .team-option');
+  const tabWidthCards = document.querySelectorAll('#tab-width-cards .team-option');
+  const tabSizeContainer = document.getElementById('tab-size-cards');
+  const tabWidthContainer = document.getElementById('tab-width-cards');
+  const cursorStyleCards = document.querySelectorAll('#cursor-style-options .team-option');
   const lineWrappingToggle = document.getElementById('line-wrapping-toggle') as HTMLInputElement;
-  const useTabsToggle = document.getElementById('use-tabs-toggle') as HTMLInputElement;
-  const tabSizeBtns = document.querySelectorAll('.tab-size-btn');
+  const useSpacesBtn = document.getElementById('use-spaces-btn') as HTMLButtonElement;
+  const useTabsBtn = document.getElementById('use-tabs-btn') as HTMLButtonElement;
+  const cursorBlinkToggle = document.getElementById('cursor-blink-toggle') as HTMLInputElement;
 
   let editorSettings: EditorSettings = {
     font_size: 16,
@@ -492,6 +579,8 @@ export function initSettings() {
     line_wrapping: true,
     tab_size: 2,
     use_tabs: false,
+    cursor_style: 'block',
+    cursor_blink: true,
   };
 
   // Load and apply editor settings on init
@@ -500,47 +589,81 @@ export function initSettings() {
     applyEditorSettings(settings);
 
     // Update UI to match loaded settings
-    if (fontSizeSlider) {
-      fontSizeSlider.value = String(settings.font_size);
+    textSizeCards.forEach(card => {
+      card.classList.toggle('active', card.getAttribute('data-size') === String(settings.font_size));
+    });
+    tabSizeCards.forEach(card => {
+      card.classList.toggle('active', card.getAttribute('data-size') === String(settings.tab_size));
+    });
+    tabWidthCards.forEach(card => {
+      card.classList.toggle('active', card.getAttribute('data-size') === String(settings.tab_size));
+    });
+    if (tabSizeContainer && tabWidthContainer) {
+      tabSizeContainer.classList.toggle('hidden', settings.use_tabs);
+      tabWidthContainer.classList.toggle('hidden', !settings.use_tabs);
     }
-    if (fontSizeValue) {
-      fontSizeValue.textContent = `${settings.font_size}px`;
-    }
+    cursorStyleCards.forEach(card => {
+      card.classList.toggle('active', card.getAttribute('data-cursor') === settings.cursor_style);
+    });
     fontOptions.forEach(opt => {
-      const font = opt.getAttribute('data-font');
-      opt.classList.toggle('active', font === settings.font_family);
+      opt.classList.toggle('active', opt.getAttribute('data-font') === settings.font_family);
     });
-    if (lineWrappingToggle) {
-      lineWrappingToggle.checked = settings.line_wrapping;
-    }
-    if (useTabsToggle) {
-      useTabsToggle.checked = settings.use_tabs;
-    }
-    tabSizeBtns.forEach(btn => {
-      const size = btn.getAttribute('data-size');
-      btn.classList.toggle('active', size === String(settings.tab_size));
+    if (lineWrappingToggle) lineWrappingToggle.checked = settings.line_wrapping;
+    if (useSpacesBtn) useSpacesBtn.classList.toggle('active', !settings.use_tabs);
+    if (useTabsBtn) useTabsBtn.classList.toggle('active', settings.use_tabs);
+    if (cursorBlinkToggle) cursorBlinkToggle.checked = settings.cursor_blink;
+  });
+
+  // Text size cards
+  textSizeCards.forEach(card => {
+    card.addEventListener('click', async () => {
+      const size = card.getAttribute('data-size');
+      if (size) {
+        textSizeCards.forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        editorSettings.font_size = parseInt(size, 10);
+        applyEditorSettings(editorSettings);
+        await setEditorSettings(editorSettings);
+      }
     });
   });
 
-  // Font size slider
-  fontSizeSlider?.addEventListener('input', async () => {
-    const size = parseInt(fontSizeSlider.value, 10);
-    if (fontSizeValue) {
-      fontSizeValue.textContent = `${size}px`;
-    }
-    editorSettings.font_size = size;
-    applyEditorSettings(editorSettings);
-    await setEditorSettings(editorSettings);
+  // Tab size cards
+  tabSizeCards.forEach(card => {
+    card.addEventListener('click', async () => {
+      const size = card.getAttribute('data-size');
+      if (size) {
+        tabSizeCards.forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        editorSettings.tab_size = parseInt(size, 10);
+        applyEditorSettings(editorSettings);
+        await setEditorSettings(editorSettings);
+      }
+    });
   });
 
-  // Font family options
-  fontOptions.forEach(opt => {
-    opt.addEventListener('click', async () => {
-      const font = opt.getAttribute('data-font');
-      if (font) {
-        fontOptions.forEach(o => o.classList.remove('active'));
-        opt.classList.add('active');
-        editorSettings.font_family = font;
+  // Tab width cards (when using tab character)
+  tabWidthCards.forEach(card => {
+    card.addEventListener('click', async () => {
+      const size = card.getAttribute('data-size');
+      if (size) {
+        tabWidthCards.forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        editorSettings.tab_size = parseInt(size, 10);
+        applyEditorSettings(editorSettings);
+        await setEditorSettings(editorSettings);
+      }
+    });
+  });
+
+  // Cursor style cards
+  cursorStyleCards.forEach(card => {
+    card.addEventListener('click', async () => {
+      const style = card.getAttribute('data-cursor');
+      if (style) {
+        cursorStyleCards.forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        editorSettings.cursor_style = style;
         applyEditorSettings(editorSettings);
         await setEditorSettings(editorSettings);
       }
@@ -554,21 +677,36 @@ export function initSettings() {
     await setEditorSettings(editorSettings);
   });
 
-  // Use tabs toggle
-  useTabsToggle?.addEventListener('change', async () => {
-    editorSettings.use_tabs = useTabsToggle.checked;
+  // Use spaces/tabs toggle
+  const handleTabModeChange = async (useTabs: boolean) => {
+    editorSettings.use_tabs = useTabs;
+    useSpacesBtn?.classList.toggle('active', !useTabs);
+    useTabsBtn?.classList.toggle('active', useTabs);
+    if (tabSizeContainer && tabWidthContainer) {
+      tabSizeContainer.classList.toggle('hidden', useTabs);
+      tabWidthContainer.classList.toggle('hidden', !useTabs);
+    }
+    applyEditorSettings(editorSettings);
+    await setEditorSettings(editorSettings);
+  };
+  useSpacesBtn?.addEventListener('click', () => handleTabModeChange(false));
+  useTabsBtn?.addEventListener('click', () => handleTabModeChange(true));
+
+  // Cursor blink toggle
+  cursorBlinkToggle?.addEventListener('change', async () => {
+    editorSettings.cursor_blink = cursorBlinkToggle.checked;
     applyEditorSettings(editorSettings);
     await setEditorSettings(editorSettings);
   });
 
-  // Tab size buttons
-  tabSizeBtns.forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const size = btn.getAttribute('data-size');
-      if (size) {
-        tabSizeBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        editorSettings.tab_size = parseInt(size, 10);
+  // Font family options
+  fontOptions.forEach(opt => {
+    opt.addEventListener('click', async () => {
+      const font = opt.getAttribute('data-font');
+      if (font) {
+        fontOptions.forEach(o => o.classList.remove('active'));
+        opt.classList.add('active');
+        editorSettings.font_family = font;
         applyEditorSettings(editorSettings);
         await setEditorSettings(editorSettings);
       }

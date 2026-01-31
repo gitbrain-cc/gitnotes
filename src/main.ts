@@ -9,7 +9,7 @@ import { initSearchBar, openSearchBar, loadAllNotes, closeSearchBar, isSearchBar
 import { parseFrontMatter, serializeFrontMatter, FrontMatter } from './frontmatter';
 import { initGitStatus, refreshGitStatus, isTeamRepo } from './git-status';
 import { initSettings, isSettingsOpen, closeSettings, getTheme, applyTheme, getEditorSettings, applyEditorSettings, getAutoCommit } from './settings';
-import { initGitView, isGitModeOpen, exitGitMode } from './git-view';
+import { initGitView, isGitModeOpen, enterGitMode, exitGitMode } from './git-view';
 import { checkOnboarding, initOnboarding, showOnboarding } from './onboarding';
 import { checkForUpdates } from './updater';
 import { initCommitModal, openCommitModal, isCommitModalOpen, closeCommitModal } from './commit-modal';
@@ -426,6 +426,7 @@ async function init() {
               recordCommit();
               flashCommitted();
               await refreshGitStatus();
+              if (isGitModeOpen()) await enterGitMode();
             } catch {
               // Commit failed silently
             }
@@ -448,6 +449,7 @@ async function init() {
           await gitCommit(currentNote!.path, msg);
           flashCommitted();
           await refreshGitStatus();
+          if (isGitModeOpen()) await enterGitMode();
         });
       }
     });

@@ -980,6 +980,235 @@ body.git-view-active #search-container {
   border-left-color: var(--accent-color);
 }
 
+/* Brains list column in settings */
+#settings-brains-list {
+  width: var(--sidebar-width-pages);
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border-color);
+}
+
+#settings-brains-list.hidden {
+  display: none;
+}
+
+#settings-brains-list ul {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+}
+
+#settings-brains-list li {
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 0.929rem;
+  overflow: hidden;
+  transition: background 150ms ease;
+}
+
+#settings-brains-list li:hover {
+  background: var(--bg-tertiary);
+}
+
+#settings-brains-list li.active {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+#settings-brains-list .brain-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#settings-brains-list .brain-active-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  flex-shrink: 0;
+}
+
+#settings-brains-list .brain-subtitle {
+  font-size: 0.786rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#settings-brains-list .brain-subtitle svg {
+  vertical-align: -2px;
+  margin-right: 3px;
+  opacity: 0.7;
+}
+
+/* Brain detail panel */
+.brain-detail-box {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  max-width: 350px;
+}
+
+.brain-detail-box svg {
+  vertical-align: -2px;
+  margin-right: 3px;
+  opacity: 0.7;
+}
+
+.brain-detail-location {
+  color: var(--text-primary);
+  font-size: 0.929rem;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brain-detail-box .vault-git {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.brain-detail-stats {
+  color: var(--text-secondary);
+  font-size: 0.857rem;
+  margin-top: 4px;
+}
+
+.brain-detail-stats .vault-modified {
+  margin-left: 4px;
+}
+
+.settings-section-label {
+  display: block;
+  font-size: 0.786rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.brain-detail-section {
+  padding-top: 24px;
+  margin-bottom: 28px;
+}
+
+.brain-type-hint {
+  font-size: 0.786rem;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  opacity: 0.7;
+}
+
+.brain-team-options {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.brain-team-options.hidden {
+  display: none;
+}
+
+.indent-marker {
+  opacity: 0.3;
+}
+
+.tab-mode-toggle {
+  display: inline-flex;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-primary);
+}
+
+.tab-mode-btn {
+  padding: 4px 16px;
+  font-size: 0.857rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tab-mode-btn.active {
+  background: var(--accent-color);
+  color: var(--bg-primary);
+}
+
+.team-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  width: 170px;
+  padding: 16px 12px;
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  text-align: center;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.team-option:hover {
+  border-color: var(--text-secondary);
+}
+
+.team-option.active {
+  border-color: var(--accent-color);
+}
+
+.team-option-icon {
+  color: var(--text-secondary);
+  transition: color 150ms ease;
+}
+
+.team-option.active .team-option-icon {
+  color: var(--accent-color);
+}
+
+.team-option-title {
+  font-size: 0.929rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.team-option-tagline {
+  font-size: 0.786rem;
+  color: var(--text-secondary);
+}
+
+.brain-detail-actions {
+  display: flex;
+  gap: 10px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-color);
+}
+
+.brain-detail-actions .settings-action-btn {
+  padding: 6px 14px;
+  font-size: 0.857rem;
+  width: 140px;
+  text-align: center;
+}
+
+.brain-detail-actions .settings-action-btn.danger {
+  color: var(--text-secondary);
+}
+
+.brain-detail-actions .settings-action-btn.danger:hover {
+  color: #e55;
+  border-color: #e55;
+}
+
 #settings-content {
   flex: 1;
   overflow-y: auto;
@@ -995,6 +1224,12 @@ body.git-view-active #search-container {
   font-size: 1.286rem;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.settings-panel-subtitle {
+  margin: 0 0 24px 0;
+  font-size: 0.929rem;
+  color: var(--text-secondary);
 }
 
 body.settings-active #top-bar {
@@ -1174,14 +1409,6 @@ body.settings-active #top-bar {
   color: var(--text-primary);
 }
 
-/* Git settings */
-.settings-label {
-  display: block;
-  font-size: 0.929rem;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-}
-
 /* Git mode options */
 #git-mode-options {
   display: flex;
@@ -1310,37 +1537,6 @@ body.settings-active #top-bar {
 }
 
 /* Editor settings */
-.text-size-control {
-  display: flex;
-  align-items: center;
-  gap: 0.857rem;
-  margin-bottom: 1.143rem;
-}
-
-.text-size-control input[type="range"] {
-  flex: 1;
-  height: 4px;
-  -webkit-appearance: none;
-  background: var(--bg-tertiary);
-  border-radius: 2px;
-  outline: none;
-}
-
-.text-size-control input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 1rem;
-  height: 1rem;
-  background: var(--accent-color);
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-#font-size-value {
-  min-width: 3rem;
-  text-align: right;
-  color: var(--text-secondary);
-  font-size: 0.857rem;
-}
 
 .font-options {
   display: flex;
@@ -1432,30 +1628,56 @@ body.settings-active #top-bar {
   accent-color: var(--accent-color);
 }
 
-.tab-size-options {
+/* Editor card previews */
+.team-option-preview {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.714rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  margin: 0;
+  text-align: left;
+  white-space: pre;
+}
+
+.team-option.active .team-option-preview {
+  color: var(--accent-color);
+}
+
+.team-option-glyph {
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--text-secondary);
+}
+
+.team-option.active .team-option-glyph {
+  color: var(--accent-color);
+}
+
+/* Cursor preview in settings cards */
+.cursor-preview {
+  position: relative;
+  height: 2.4rem;
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
 }
 
-.tab-size-btn {
-  padding: 0.429rem 0.857rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  color: var(--text-primary);
-  font-size: 0.857rem;
-  cursor: pointer;
-  transition: all 0.15s;
+.cursor-sample {
+  position: relative;
+  font-size: 1.4rem;
+  color: var(--text-secondary);
+  opacity: 0.3;
 }
 
-.tab-size-btn:hover {
-  background: var(--bg-tertiary);
+.cursor-glyph {
+  position: absolute;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--text-secondary);
 }
 
-.tab-size-btn.active {
-  background: var(--accent-color);
-  border-color: var(--accent-color);
-  color: #fff;
+.team-option.active .cursor-glyph {
+  color: var(--accent-color);
 }
 
 /* Vault actions */
@@ -1780,12 +2002,23 @@ body.settings-active #top-bar {
   display: none;
 }
 
+#git-uncommitted-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 #git-uncommitted-list,
 #git-commits-list {
   list-style: none;
   padding: 0;
   margin: 0;
   overflow-y: auto;
+}
+
+#git-uncommitted-list {
+  flex: 1;
 }
 
 #git-history-section {
@@ -1801,7 +2034,7 @@ body.settings-active #top-bar {
 
 #git-uncommitted-list li,
 #git-commits-list li {
-  padding: 8px 16px;
+  padding: 4px 16px;
   cursor: pointer;
   border-left: 3px solid transparent;
 }
@@ -1923,6 +2156,7 @@ body.settings-active #top-bar {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 #git-commit-message {
@@ -2353,3 +2587,4 @@ body.settings-active #top-bar {
 .btn-primary:hover {
   filter: brightness(1.1);
 }
+

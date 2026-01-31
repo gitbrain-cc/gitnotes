@@ -164,6 +164,10 @@ pub struct EditorSettings {
     pub tab_size: u8,
     #[serde(default = "default_use_tabs")]
     pub use_tabs: bool,
+    #[serde(default = "default_cursor_style")]
+    pub cursor_style: String,
+    #[serde(default = "default_cursor_blink")]
+    pub cursor_blink: bool,
 }
 
 fn default_font_size() -> u8 { 16 }
@@ -171,6 +175,8 @@ fn default_font_family() -> String { "system".to_string() }
 fn default_line_wrapping() -> bool { true }
 fn default_tab_size() -> u8 { 2 }
 fn default_use_tabs() -> bool { false }
+fn default_cursor_style() -> String { "block".to_string() }
+fn default_cursor_blink() -> bool { true }
 
 impl Default for EditorSettings {
     fn default() -> Self {
@@ -180,6 +186,8 @@ impl Default for EditorSettings {
             line_wrapping: default_line_wrapping(),
             tab_size: default_tab_size(),
             use_tabs: default_use_tabs(),
+            cursor_style: default_cursor_style(),
+            cursor_blink: default_cursor_blink(),
         }
     }
 }
