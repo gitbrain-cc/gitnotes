@@ -116,30 +116,27 @@
     .screenshot {
       width: 100%;
       border-radius: 12px;
-      transform: rotateX(10deg) rotateY(-5deg);
-      box-shadow:
-        0 50px 100px -20px rgba(0, 0, 0, 0.8),
-        0 30px 60px -30px rgba(0, 0, 0, 0.6);
-      transition: transform 0.4s ease;
       position: relative;
       z-index: 1;
-    }
-
-    .screenshot:hover {
-      transform: rotateX(5deg) rotateY(-2deg);
     }
 
     /* Features Section */
     .features {
       padding: 6rem 2rem;
-      max-width: 1000px;
+      max-width: 1100px;
       margin: 0 auto;
     }
 
     .features-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 3rem;
+    }
+
+    @media (max-width: 900px) {
+      .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
     }
 
     @media (max-width: 640px) {
@@ -224,7 +221,7 @@
       }
 
       .screenshot {
-        transform: rotateX(8deg) rotateY(-3deg);
+        border-radius: 8px;
       }
     }
   </style>
@@ -241,7 +238,7 @@
       </svg>
       Download for Mac
     </a>
-    <p class="version">v0.1.0 · macOS · <a href="https://github.com/gitbrain-cc/gitnotes">Open Source</a></p>
+    <p class="version">v0.1.1 · macOS · <a href="https://github.com/gitbrain-cc/gitnotes">Open Source</a></p>
 
     <div class="screenshot-container">
       <div class="screenshot-glow"></div>
@@ -290,6 +287,28 @@
         </svg>
         <h3 class="feature-headline">Just files, forever</h3>
         <p class="feature-description">Markdown files in folders. Open with any editor, sync with any git host. Your notes belong to you.</p>
+      </div>
+      <div class="feature">
+        <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="13.5" cy="6.5" r="2.5"></circle>
+          <circle cx="19" cy="11.5" r="2.5"></circle>
+          <circle cx="6.5" cy="11.5" r="2.5"></circle>
+          <circle cx="17" cy="18.5" r="2.5"></circle>
+          <circle cx="8.5" cy="18.5" r="2.5"></circle>
+        </svg>
+        <h3 class="feature-headline">Make it yours</h3>
+        <p class="feature-description">Six themes from dark to light, serif or sans-serif fonts, adjustable text size. Your notes, your way.</p>
+      </div>
+
+      <div class="feature">
+        <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <h3 class="feature-headline">Built for teams</h3>
+        <p class="feature-description">Share a brain repo with your team. Smart commit detection shows who changed what, with one-click commit and push.</p>
       </div>
     </div>
   </section>

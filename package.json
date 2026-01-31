@@ -1,6 +1,6 @@
 {
   "name": "gitnotes",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Lightweight markdown notes app",
   "type": "module",
   "scripts": {
