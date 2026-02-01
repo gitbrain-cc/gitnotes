@@ -1,0 +1,11 @@
+{
+  "productName": "GitNotes Dev",
+  "identifier": "cc.gitnotes.dev",
+  "app": {
+    "windows": [
+      {
+        "title": "GitNotes [DEV]"
+      }
+    ]
+  }
+}
