@@ -2,6 +2,8 @@
 
 Lightweight markdown notes app. Tauri 2.0 (Rust) + TypeScript + CodeMirror 6.
 
+**Workspace Context:** First read `../.claude/CLAUDE.md` for brain, gitbrain and cross-repo structure.
+
 ## Development
 
 ```bash
