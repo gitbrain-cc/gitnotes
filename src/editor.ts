@@ -414,3 +414,17 @@ export function getContentUpToCursor(): string {
   const pos = editorView.state.selection.main.head;
   return editorView.state.doc.sliceString(0, pos);
 }
+
+export function setCursorPosition(pos: number) {
+  if (!editorView) return;
+  const docLength = editorView.state.doc.length;
+  const safePos = Math.min(pos, docLength);
+  editorView.dispatch({
+    selection: { anchor: safePos }
+  });
+}
+
+export function setScrollTop(top: number) {
+  if (!editorView) return;
+  editorView.scrollDOM.scrollTop = top;
+}

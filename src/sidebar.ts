@@ -158,7 +158,7 @@ async function refreshCurrentNotes() {
 
 let listenersInitialized = false;
 
-export async function initSidebar() {
+export async function initSidebar(restoreSection?: string) {
   // Initialize sort menu with refresh callback
   initSortMenu(refreshCurrentNotes);
 
@@ -166,7 +166,10 @@ export async function initSidebar() {
   renderSections();
 
   if (sections.length > 0) {
-    await selectSection(sections[0]);
+    const target = restoreSection
+      ? sections.find(s => s.name === restoreSection) || sections[0]
+      : sections[0];
+    await selectSection(target);
   }
 
   // Only add event listeners once (initSidebar can be called multiple times on vault switch)

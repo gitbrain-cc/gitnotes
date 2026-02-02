@@ -1,8 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { listen } from '@tauri-apps/api/event';
 import { initSidebar, navigateToPath } from './sidebar';
 import {
   initEditor, getContent, focusEditor, getWordCount, updateHeaderData, loadContent,
-  getCursorPosition, getScrollTop, getViewportHeight, getContentUpToCursor
+  getCursorPosition, getScrollTop, getViewportHeight, getContentUpToCursor,
+  setCursorPosition, setScrollTop
 } from './editor';
 import { recordEdit, recordSave, recordCommit, startEvalLoop, triggerImmediateCommit } from './commit-engine';
 import { initSearchBar, openSearchBar, loadAllNotes, closeSearchBar, isSearchBarOpen, addRecentFile } from './search-bar';
@@ -387,6 +390,20 @@ function setupKeyboardShortcuts() {
   });
 }
 
+async function saveSessionState() {
+  if (!currentNote) return;
+  const cursor = getCursorPosition();
+  const scroll = getScrollTop();
+  const parts = currentNote.path.split('/');
+  const section = parts.length >= 2 ? parts[parts.length - 2] : '';
+  await invoke('save_session_state', {
+    section,
+    note: currentNote.path,
+    cursorPos: cursor,
+    scrollTop: scroll,
+  }).catch(err => console.error('saveSessionState failed:', err));
+}
+
 async function init() {
   try {
     // Apply theme and editor settings immediately to prevent flash
@@ -409,8 +426,26 @@ async function init() {
     initSettings();
     initCommitModal();
     setupKeyboardShortcuts();
-    await initSidebar();
+    // Read last session before sidebar init so we can restore the right section
+    const settings: any = await invoke('get_settings');
+    const lastSession = settings.last_session;
+
+    await initSidebar(lastSession?.section);
     await loadAllNotes();
+
+    // Restore last note, cursor, scroll
+    if (lastSession) {
+      try {
+        await navigateToPath(lastSession.note, lastSession.section);
+        requestAnimationFrame(() => {
+          setCursorPosition(lastSession.cursor_pos);
+          setScrollTop(lastSession.scroll_top);
+        });
+      } catch {
+        // Section or note no longer exists — fall through to default
+      }
+    }
+
     setStatus('Ready');
 
     // Start commit evaluation loop
@@ -443,6 +478,7 @@ async function init() {
 
     // Immediate commit on blur (app loses focus)
     window.addEventListener('blur', async () => {
+      saveSessionState();
       const autoCommit = await getAutoCommit();
       if (autoCommit && currentNote) {
         await triggerImmediateCommit(async (msg) => {
@@ -454,14 +490,29 @@ async function init() {
       }
     });
 
-    // Immediate commit on close (window closes)
-    window.addEventListener('beforeunload', async () => {
+    // Save session + commit on window close (red button)
+    getCurrentWindow().onCloseRequested(async (event) => {
+      event.preventDefault();
+      await saveSessionState();
       const autoCommit = await getAutoCommit();
       if (autoCommit && currentNote) {
         await triggerImmediateCommit(async (msg) => {
           await gitCommit(currentNote!.path, msg);
         });
       }
+      getCurrentWindow().destroy();
+    });
+
+    // Save session + commit on Cmd+Q
+    listen('quit-requested', async () => {
+      await saveSessionState();
+      const autoCommit = await getAutoCommit();
+      if (autoCommit && currentNote) {
+        await triggerImmediateCommit(async (msg) => {
+          await gitCommit(currentNote!.path, msg);
+        });
+      }
+      getCurrentWindow().destroy();
     });
 
     // Check for updates in background

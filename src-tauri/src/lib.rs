@@ -192,6 +192,14 @@ impl Default for EditorSettings {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LastSession {
+    pub section: String,
+    pub note: String,
+    pub cursor_pos: usize,
+    pub scroll_top: f64,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Settings {
     pub vaults: Vec<Vault>,
@@ -203,12 +211,18 @@ pub struct Settings {
     pub appearance: AppearanceSettings,
     #[serde(default)]
     pub editor: EditorSettings,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_session: Option<LastSession>,
+}
+
+fn get_config_dir_name() -> &'static str {
+    if cfg!(debug_assertions) { "gitnotes-dev" } else { "gitnotes" }
 }
 
 fn get_settings_path() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| dirs::home_dir().unwrap_or_default())
-        .join("gitnotes")
+        .join(get_config_dir_name())
         .join("settings.json")
 }
 
@@ -236,6 +250,7 @@ fn load_settings() -> Settings {
         git: GitSettings::default(),
         appearance: AppearanceSettings::default(),
         editor: EditorSettings::default(),
+        last_session: None,
     }
 }
 
@@ -1837,6 +1852,18 @@ fn update_settings(settings: Settings) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn save_session_state(section: String, note: String, cursor_pos: usize, scroll_top: f64) -> Result<(), String> {
+    let mut settings = load_settings();
+    settings.last_session = Some(LastSession {
+        section,
+        note,
+        cursor_pos,
+        scroll_top,
+    });
+    save_settings(&settings)
+}
+
+#[tauri::command]
 fn get_vault_stats(vault_id: String) -> Result<VaultStats, String> {
     let settings = load_settings();
     let vault = settings
@@ -2348,7 +2375,7 @@ pub fn run() {
     // Initialize search index
     let index_path = dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("gitnotes")
+        .join(get_config_dir_name())
         .join("search-index");
 
     let search_index = Arc::new(
@@ -2374,10 +2401,15 @@ pub fn run() {
                 .accelerator("CmdOrCtrl+,")
                 .build(app)?;
 
+            let quit_item = MenuItemBuilder::new("Quit GitNotes")
+                .id("quit")
+                .accelerator("CmdOrCtrl+Q")
+                .build(app)?;
+
             let app_submenu = SubmenuBuilder::new(app, "GitNotes")
                 .item(&settings_item)
                 .separator()
-                .quit()
+                .item(&quit_item)
                 .build()?;
 
             let edit_submenu = SubmenuBuilder::new(app, "Edit")
@@ -2401,6 +2433,9 @@ pub fn run() {
             app.on_menu_event(move |app, event| {
                 if event.id() == "settings" {
                     let _ = app.emit("open-settings", ());
+                }
+                if event.id() == "quit" {
+                    let _ = app.emit("quit-requested", ());
                 }
             });
 
@@ -2441,6 +2476,7 @@ pub fn run() {
             save_section_order,
             get_settings,
             update_settings,
+            save_session_state,
             validate_active_vault,
             get_vault_stats,
             add_vault,
