@@ -34,7 +34,7 @@
 
 ## Editor
 
-Standard CodeMirror keybindings apply:
+Standard ProseMirror keybindings apply:
 
 | Shortcut | Action |
 |----------|--------|

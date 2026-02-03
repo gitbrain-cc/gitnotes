@@ -1,6 +1,6 @@
 # GitNotes - Claude Instructions
 
-Lightweight markdown notes app. Tauri 2.0 (Rust) + TypeScript + CodeMirror 6.
+Lightweight markdown notes app. Tauri 2.0 (Rust) + TypeScript + ProseMirror.
 
 **Workspace Context:** First read `../.claude/CLAUDE.md` for brain, gitbrain and cross-repo structure.
 
@@ -19,8 +19,7 @@ npm run tauri build # Release build
 | `src-tauri/src/search.rs` | Tantivy full-text search |
 | `src/main.ts` | Frontend entry, orchestration |
 | `src/sidebar.ts` | Section/note navigation |
-| `src/editor.ts` | CodeMirror setup |
-| `src/editor/live-preview.ts` | Inline markdown rendering |
+| `src/editor.ts` | ProseMirror editor |
 | `src/search-bar.ts` | Unified search UI |
 | `src/git-status.ts` | Git integration UI |
 | `src/settings.ts` | Settings full-page view (third view mode alongside notes/git) |

@@ -16,7 +16,7 @@ Lightweight markdown notes app for developers. Git-native OneNote replacement bu
 
 - **Shell:** Tauri 2.0 (Rust)
 - **Frontend:** Vanilla TypeScript
-- **Editor:** CodeMirror 6
+- **Editor:** ProseMirror
 - **Search:** Tantivy
 
 ## Development

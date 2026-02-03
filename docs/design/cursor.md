@@ -1,44 +1,52 @@
 # Cursor - Design Spec
 
-The editor cursor is rendered as a Unicode glyph via CSS `::after` on CodeMirror's `.cm-cursor` element.
+**Status:** v1 uses native browser caret. Custom glyph system planned for v2.
 
 ---
 
-## Architecture
+## Current Implementation (v1)
 
-All cursor styling lives in `src/editor.ts`:
+After migrating from CodeMirror 6 to ProseMirror (2026-02-03), the cursor uses the native browser caret styled with the accent color:
 
-- `cursorGlyph` — the Unicode character used as the cursor
-- `injectCursorStyles()` — injects a `<style>` tag rendering the glyph via `::after`
-- The CM theme sets `.cm-cursor` borders to `none`, letting the glyph do all the work
+```css
+#editor .ProseMirror {
+  caret-color: var(--accent-color);
+}
+```
 
-This approach replaces CSS border/pseudo-element hacks that fought CodeMirror's overflow clipping.
+This is handled by `src/editor/cursor.ts` via `injectCursorStyles()`.
 
----
-
-## Current Default
-
-`⌐` (U+2310, Reversed Not Sign) — a flat horizontal line with a short vertical tick dropping from the left edge. Pinpoints where typing will insert.
+**Trade-off:** Native caret is reliable and has no rendering bugs, but cursor style/blink settings in the UI are currently no-ops.
 
 ---
 
-## Available Glyphs
+## v2 Roadmap: Custom Glyph Cursor
 
-Candidates for settings:
+See `docs/todo/editor-v2.md` for the full plan.
 
-| Glyph | Unicode | Name | Description |
-|-------|---------|------|-------------|
-| `⌐` | U+2310 | Reversed Not Sign | Flat line, tick drops left (default) |
-| `¬` | U+00AC | Not Sign | Flat line, tick drops right |
-| `_` | U+005F | Underscore | Simple underline |
-| `▁` | U+2581 | Lower One Eighth Block | Thin block underline |
-| `│` | U+2502 | Box Light Vertical | Classic vertical bar |
-| `▏` | U+258F | Left One Eighth Block | Thin vertical bar |
+The goal is to restore the custom cursor glyph system:
+
+| Style | Glyph |
+|-------|-------|
+| block | ⌐ |
+| line | \| |
+| underline | ¬ |
+| caret | ^ |
+| underscore | _ |
+| dot | ° |
+
+**Implementation approach:** ProseMirror plugin that:
+1. Tracks cursor position via `EditorView.update`
+2. Renders a positioned DOM element at cursor location
+3. Hides native caret with `caret-color: transparent`
+
+Once implemented, cursor blink control becomes a CSS animation toggle on the glyph element.
 
 ---
 
-## Customization
+## Files
 
-The cursor glyph is a single variable (`cursorGlyph`). To make it a user setting, wire it to the settings system and call `injectCursorStyles()` on change.
-
-The glyph color is always `var(--accent-color)`, inheriting from the active theme.
+| File | Purpose |
+|------|---------|
+| `src/editor/cursor.ts` | Cursor style injection, glyph definitions |
+| `src/settings.ts` | Cursor style/blink UI (currently no-op) |
