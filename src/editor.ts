@@ -24,7 +24,7 @@ import { buildInputRules } from './editor/input-rules';
  * See: https://prosemirror.net/docs/ref/#markdown
  */
 const schema = defaultMarkdownParser.schema;
-import { injectCursorStyles } from './editor/cursor';
+import { buildCursorPlugin, injectCursorStyles, setCursorBlink } from './editor/cursor';
 import { scheduleSave } from './main';
 import { FrontMatter, parseFrontMatter, serializeFrontMatter } from './frontmatter';
 
@@ -81,11 +81,18 @@ export function initEditor() {
         history(),
         buildKeymap(),
         buildInputRules(schema),
+        buildCursorPlugin(),
         dropCursor(),
         gapCursor(),
         savePlugin(),
       ],
     }),
+    attributes: {
+      spellcheck: 'false',
+      autocomplete: 'off',
+      autocorrect: 'off',
+      autocapitalize: 'off',
+    },
   });
 
   // Listen for settings changes
@@ -109,8 +116,9 @@ export function reconfigureEditor(settings: EditorSettingsForReconfigure): void 
   // Tab size as CSS property (for code blocks)
   container.style.tabSize = String(settings.tab_size);
 
-  // Cursor styling (native caret with accent color for v1)
+  // Cursor styling
   injectCursorStyles(settings.cursor_style || 'block');
+  setCursorBlink(settings.cursor_blink ?? true);
 }
 
 export function loadContent(content: string) {

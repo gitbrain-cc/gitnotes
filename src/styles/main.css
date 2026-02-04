@@ -290,6 +290,13 @@ body {
   background: color-mix(in srgb, var(--accent-color) 25%, transparent);
 }
 
+/* Breathing room at bottom - allows scrolling past end of document */
+#editor .ProseMirror::after {
+  content: '';
+  display: block;
+  height: 50vh;
+}
+
 /* Headings */
 #editor .ProseMirror h1 {
   font-size: 1.6em;
@@ -417,6 +424,11 @@ body {
 
 #editor .ProseMirror .ProseMirror-gapcursor::after {
   border-top: 1px solid var(--accent-color);
+}
+
+/* Custom cursor - hide when unfocused */
+#editor .ProseMirror:not(:focus) .pm-cursor::after {
+  display: none;
 }
 
 /* Status bar */
