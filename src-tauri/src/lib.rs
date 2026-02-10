@@ -32,6 +32,8 @@ pub struct SectionMetadata {
     pub order: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_note: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_instructions: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -423,6 +425,16 @@ fn save_section_metadata(section_path: &PathBuf, metadata: &SectionMetadata) -> 
     }
     if let Some(ref last_note) = metadata.last_note {
         lines.push(format!("last_note: \"{}\"", last_note));
+    }
+    if let Some(ref instructions) = metadata.agent_instructions {
+        lines.push("agent_instructions: |".to_string());
+        for line in instructions.lines() {
+            if line.is_empty() {
+                lines.push(String::new());
+            } else {
+                lines.push(format!("  {}", line));
+            }
+        }
     }
 
     lines.push("---".to_string());
