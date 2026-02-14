@@ -1,5 +1,5 @@
 import { keymap } from 'prosemirror-keymap';
-import { baseKeymap } from 'prosemirror-commands';
+import { baseKeymap, createParagraphNear, liftEmptyBlock, splitBlock, chainCommands } from 'prosemirror-commands';
 import { undo, redo } from 'prosemirror-history';
 import {
   sinkListItem,
@@ -47,9 +47,11 @@ export function buildKeymap(): Plugin {
       }
       return false;
     },
-    'Enter': (state, dispatch) => {
-      const listItemType = getListItemType(state);
-      return splitListItem(listItemType)(state, dispatch);
-    },
+    'Enter': chainCommands(
+      (state, dispatch) => splitListItem(getListItemType(state))(state, dispatch),
+      createParagraphNear,
+      liftEmptyBlock,
+      splitBlock,
+    ),
   });
 }

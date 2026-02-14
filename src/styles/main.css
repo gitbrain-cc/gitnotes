@@ -279,7 +279,7 @@ body {
   outline: none;
   font-family: var(--font-family-base);
   font-size: 0.929rem;
-  line-height: 1.7;
+  line-height: 1.5;
   letter-spacing: 0.01em;
   color: var(--text-primary);
   caret-color: var(--accent-color);

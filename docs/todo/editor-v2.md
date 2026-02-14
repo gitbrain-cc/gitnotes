@@ -6,7 +6,7 @@ Post-ProseMirror migration improvements.
 
 ---
 
-## Custom Cursor Glyphs
+## ~~Custom Cursor Glyphs~~ ✅ Done
 
 **Priority:** Medium | **Effort:** Medium
 
@@ -24,7 +24,7 @@ Restore the custom cursor glyph system from CodeMirror era:
 
 ---
 
-## Cursor Blink Control
+## ~~Cursor Blink Control~~ ✅ Done
 
 **Priority:** Low | **Effort:** Low
 
@@ -49,7 +49,7 @@ Code blocks currently render as plain monospace text.
 
 ---
 
-## Scroll Past End
+## ~~Scroll Past End~~ ✅ Done
 
 **Priority:** Low | **Effort:** Low
 
