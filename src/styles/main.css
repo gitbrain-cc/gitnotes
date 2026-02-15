@@ -192,6 +192,24 @@ body {
   padding-left: 11px;
 }
 
+/* Section type icons */
+#sections-list li {
+  display: flex;
+  align-items: center;
+}
+
+.section-icon {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  opacity: 0.35;
+  flex-shrink: 0;
+}
+
+.sidebar li.active .section-icon {
+  opacity: 0.6;
+}
+
 /* Section with custom color */
 #sections-list li[data-color] {
   border-left-color: var(--section-color);
@@ -262,9 +280,44 @@ body {
   color: var(--text-primary);
 }
 
+#note-header .meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 #note-header .meta {
   font-size: 0.857rem;
   color: var(--text-secondary);
+}
+
+.whisper-toggle {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.whisper-pill {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 2px 10px;
+  font-size: 0.786rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.whisper-pill:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.whisper-pill.active {
+  background: transparent;
+  border-color: var(--accent-color);
+  color: var(--accent-color);
 }
 
 #editor {
@@ -428,6 +481,20 @@ body {
 
 /* Custom cursor - hide when unfocused */
 #editor .ProseMirror:not(:focus) .pm-cursor::after {
+  display: none;
+}
+
+/* Whisper mode - read-only styling */
+#editor-container.whisper-mode {
+  opacity: 0.85;
+}
+
+#editor-container.whisper-mode .ProseMirror {
+  cursor: default;
+}
+
+#editor-container.whisper-mode .ProseMirror-cursor,
+#editor-container.whisper-mode .ProseMirror .ProseMirror-cursor-custom {
   display: none;
 }
 

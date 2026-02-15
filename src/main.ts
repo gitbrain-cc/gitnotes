@@ -4,6 +4,7 @@ import { listen } from '@tauri-apps/api/event';
 import { initSidebar, navigateToPath } from './sidebar';
 import {
   initEditor, getContent, focusEditor, getWordCount, updateHeaderData, loadContent,
+  loadWhisperContent, setEditable,
   getCursorPosition, getScrollTop, getViewportHeight, getContentUpToCursor,
   setCursorPosition, setScrollTop
 } from './editor';
@@ -20,6 +21,7 @@ import { initCommitModal, openCommitModal, isCommitModalOpen, closeCommitModal }
 interface Section {
   name: string;
   path: string;
+  section_type?: string;
 }
 
 interface Note {
@@ -40,10 +42,18 @@ interface GitInfo {
   is_git_repo: boolean;
 }
 
+interface Whisper {
+  character: string;
+  path: string;
+  generated: string | null;
+}
+
 let currentNote: Note | null = null;
 let currentFrontMatter: FrontMatter = {};
 let currentBody: string = '';
 let saveTimeout: number | null = null;
+let currentWhispers: Whisper[] = [];
+let activeWhisper: string | null = null;
 
 export function clearPendingSave() {
   if (saveTimeout) {
@@ -106,6 +116,10 @@ export async function renameSection(path: string, newName: string): Promise<Sect
 
 export async function deleteSection(path: string): Promise<void> {
   return await invoke('delete_section', { path });
+}
+
+export async function listWhispers(notePath: string): Promise<Whisper[]> {
+  return await invoke('list_whispers', { notePath });
 }
 
 export async function setSectionMetadata(sectionPath: string, title: string | null, color: string | null) {
@@ -240,6 +254,11 @@ function isSameDay(dateA: string, dateB: string): boolean {
 
 // Load note and update header
 export async function loadNoteWithHeader(note: Note) {
+  // Reset whisper state
+  activeWhisper = null;
+  currentWhispers = [];
+  setEditable(true);
+
   currentNote = note;
 
   // Read raw content
@@ -275,10 +294,13 @@ export async function loadNoteWithHeader(note: Note) {
   const fullContent = serializeFrontMatter(currentFrontMatter, currentBody);
   loadContent(fullContent);
 
-  // Update header display
-  updateHeaderData({ title, createdDate, modifiedInfo });
-
   updateWordCount();
+
+  // Discover whispers for this note
+  currentWhispers = await listWhispers(note.path);
+  activeWhisper = null;
+  updateHeaderData({ title, createdDate, modifiedInfo, whispers: currentWhispers, activeWhisper });
+  attachWhisperHandlers();
 
   // Track as recent file
   addRecentFile(note.path);
@@ -298,6 +320,87 @@ async function refreshHeader() {
     title: currentNote.name,
     createdDate,
     modifiedInfo,
+    whispers: currentWhispers,
+    activeWhisper,
+  });
+  attachWhisperHandlers();
+}
+
+// Refresh header with whisper-aware metadata
+function refreshHeaderWithWhispers() {
+  if (!currentNote) return;
+
+  if (activeWhisper) {
+    // Show whisper metadata instead of note metadata
+    const whisper = currentWhispers.find(w => w.character === activeWhisper);
+    const generatedDate = whisper?.generated
+      ? formatAbsoluteDate(whisper.generated)
+      : null;
+    const characterLabel = activeWhisper.charAt(0).toUpperCase() + activeWhisper.slice(1);
+    const meta = generatedDate
+      ? `Generated ${generatedDate} · by ${characterLabel}`
+      : `by ${characterLabel}`;
+
+    updateHeaderData({
+      title: currentNote.name,
+      createdDate: null,
+      modifiedInfo: meta,
+      whispers: currentWhispers,
+      activeWhisper,
+    });
+  } else {
+    // Show normal note metadata — delegate to async refreshHeader
+    refreshHeader();
+    return; // refreshHeader already attaches handlers
+  }
+  attachWhisperHandlers();
+}
+
+// Flush any pending save synchronously
+async function flushPendingSave() {
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
+    if (currentNote) {
+      const fullContent = getContent();
+      const parsed = parseFrontMatter(fullContent);
+      currentBody = parsed.body;
+      const contentToSave = serializeFrontMatter(currentFrontMatter, currentBody);
+      await writeNote(currentNote.path, contentToSave);
+    }
+  }
+}
+
+// Attach click handlers to whisper pills
+function attachWhisperHandlers() {
+  const pills = document.querySelectorAll('.whisper-pill');
+  pills.forEach(pill => {
+    pill.addEventListener('click', async () => {
+      const character = (pill as HTMLElement).dataset.character || '';
+      const whisperPath = (pill as HTMLElement).dataset.path || '';
+
+      if (!character) {
+        // "Note" pill — restore original note content
+        activeWhisper = null;
+        if (currentNote) {
+          const rawContent = await readNote(currentNote.path);
+          const parsed = parseFrontMatter(rawContent);
+          currentFrontMatter = parsed.frontmatter;
+          currentBody = parsed.body;
+          const fullContent = serializeFrontMatter(currentFrontMatter, currentBody);
+          loadContent(fullContent);
+          setEditable(true);
+        }
+        refreshHeaderWithWhispers();
+      } else {
+        // Whisper pill — flush pending save, load whisper read-only
+        await flushPendingSave();
+        activeWhisper = character;
+        const whisperContent = await readNote(whisperPath);
+        loadWhisperContent(whisperContent);
+        refreshHeaderWithWhispers();
+      }
+    });
   });
 }
 

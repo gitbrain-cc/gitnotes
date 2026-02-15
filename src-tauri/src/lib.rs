@@ -16,6 +16,7 @@ pub struct Section {
     pub path: String,
     pub title: Option<String>,
     pub color: Option<String>,
+    pub section_type: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -34,6 +35,8 @@ pub struct SectionMetadata {
     pub last_note: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_instructions: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "type")]
+    pub section_type: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -43,6 +46,13 @@ pub struct Note {
     pub filename: String,
     pub created: u64,  // Unix timestamp
     pub modified: u64, // Unix timestamp
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Whisper {
+    pub character: String,
+    pub path: String,
+    pub generated: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -436,6 +446,9 @@ fn save_section_metadata(section_path: &PathBuf, metadata: &SectionMetadata) -> 
             }
         }
     }
+    if let Some(ref section_type) = metadata.section_type {
+        lines.push(format!("type: {}", section_type));
+    }
 
     lines.push("---".to_string());
 
@@ -596,6 +609,7 @@ fn list_sections() -> Result<Vec<Section>, String> {
                     path: path.to_string_lossy().to_string(),
                     title: metadata.title,
                     color: metadata.color,
+                    section_type: metadata.section_type.clone(),
                 })
             } else {
                 None
@@ -1054,6 +1068,7 @@ fn create_section(name: String) -> Result<Section, String> {
         path: section_path.to_string_lossy().to_string(),
         title: None,
         color: None,
+        section_type: None,
     })
 }
 
@@ -1088,6 +1103,7 @@ fn rename_section(path: String, new_name: String) -> Result<Section, String> {
         path: path,
         title: metadata.title,
         color: metadata.color,
+        section_type: metadata.section_type.clone(),
     })
 }
 
@@ -1133,6 +1149,73 @@ fn get_file_metadata(path: String) -> Result<FileMetadata, String> {
     });
 
     Ok(FileMetadata { created })
+}
+
+#[tauri::command]
+fn list_whispers(note_path: String) -> Result<Vec<Whisper>, String> {
+    let note = PathBuf::from(&note_path);
+    let parent = note.parent().ok_or("Invalid note path")?;
+    let stem = note
+        .file_stem()
+        .ok_or("Invalid note filename")?
+        .to_string_lossy();
+
+    let whispers_dir = parent.join(".whispers");
+    if !whispers_dir.exists() || !whispers_dir.is_dir() {
+        return Ok(vec![]);
+    }
+
+    let prefix = format!("{}.", stem);
+
+    let mut whispers: Vec<Whisper> = fs::read_dir(&whispers_dir)
+        .map_err(|e| e.to_string())?
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            let filename = entry.file_name().to_string_lossy().to_string();
+
+            // Must match <stem>.<character>.md
+            if !filename.starts_with(&prefix) || !filename.ends_with(".md") {
+                return None;
+            }
+
+            // Extract character: strip prefix and .md suffix
+            let rest = filename.strip_prefix(&prefix)?;
+            let character = rest.strip_suffix(".md")?;
+
+            // Skip bare <stem>.md (empty character name)
+            if character.is_empty() {
+                return None;
+            }
+
+            let whisper_path = entry.path();
+
+            // Parse frontmatter to get generated timestamp
+            let generated = fs::read_to_string(&whisper_path)
+                .ok()
+                .and_then(|content| {
+                    if !content.starts_with("---\n") {
+                        return None;
+                    }
+                    let end = content[4..].find("\n---")?;
+                    let yaml_str = &content[4..4 + end];
+                    let map: std::collections::HashMap<String, serde_yaml::Value> =
+                        serde_yaml::from_str(yaml_str).ok()?;
+                    map.get("generated")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                });
+
+            Some(Whisper {
+                character: character.to_string(),
+                path: whisper_path.to_string_lossy().to_string(),
+                generated,
+            })
+        })
+        .collect();
+
+    whispers.sort_by(|a, b| a.character.cmp(&b.character));
+
+    Ok(whispers)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2469,6 +2552,7 @@ pub fn run() {
             rename_section,
             delete_section,
             get_file_metadata,
+            list_whispers,
             get_git_info,
             git_commit,
             git_commit_and_push,

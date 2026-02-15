@@ -18,6 +18,7 @@ interface Section {
   path: string;
   title?: string;
   color?: string;
+  section_type?: string;
 }
 
 interface Note {
@@ -327,8 +328,17 @@ function renderSections() {
 
   for (const section of sections) {
     const li = document.createElement('li');
-    li.textContent = section.title || section.name;
     li.dataset.path = section.path;
+
+    li.appendChild(document.createTextNode(section.title || section.name));
+
+    const isJournal = section.section_type === 'journal' || section.name === '1-weeks' || (section.title || '').toLowerCase() === 'journal';
+    if (isJournal) {
+      const icon = document.createElement('span');
+      icon.className = 'section-icon';
+      icon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 1-4 4v14a3 3 0 0 0 3-3h7z"/></svg>';
+      li.appendChild(icon);
+    }
 
     if (section.color) {
       li.dataset.color = section.color;

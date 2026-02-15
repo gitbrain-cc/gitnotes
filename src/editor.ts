@@ -36,6 +36,8 @@ export interface HeaderData {
   title: string;
   createdDate: string | null;
   modifiedInfo: string | null;
+  whispers?: { character: string; path: string; generated: string | null }[];
+  activeWhisper?: string | null;
 }
 
 // Settings interface (preserved for callers)
@@ -137,6 +139,30 @@ export function loadContent(content: string) {
   );
 }
 
+export function setEditable(editable: boolean) {
+  if (!editorView) return;
+  editorView.setProps({
+    editable: () => editable,
+  });
+  const container = document.getElementById('editor-container');
+  if (container) {
+    container.classList.toggle('whisper-mode', !editable);
+  }
+}
+
+export function loadWhisperContent(content: string) {
+  if (!editorView) return;
+  const parsed = parseFrontMatter(content);
+  const doc = defaultMarkdownParser.parse(parsed.body) || schema.node('doc', null, [schema.node('paragraph')]);
+  editorView.updateState(
+    EditorState.create({
+      doc,
+      plugins: editorView.state.plugins,
+    })
+  );
+  setEditable(false);
+}
+
 export function getContent(): string {
   if (!editorView) return '';
   const body = defaultMarkdownSerializer.serialize(editorView.state.doc);
@@ -173,9 +199,27 @@ export function updateHeaderData(data: HeaderData) {
     parts.push(data.modifiedInfo);
   }
 
+  let whisperHtml = '';
+  if (data.whispers && data.whispers.length > 0) {
+    const pills = data.whispers.map(w => {
+      const isActive = data.activeWhisper === w.character;
+      const label = w.character.charAt(0).toUpperCase() + w.character.slice(1);
+      return `<button class="whisper-pill${isActive ? ' active' : ''}" data-character="${w.character}" data-path="${w.path}">${label}</button>`;
+    });
+    const noteActive = !data.activeWhisper;
+    whisperHtml = `
+      <div class="whisper-toggle">
+        <button class="whisper-pill${noteActive ? ' active' : ''}" data-character="">Note</button>
+        ${pills.join('')}
+      </div>`;
+  }
+
   header.innerHTML = `
     <h1>${data.title}</h1>
-    <div class="meta">${parts.join(' · ')}</div>
+    <div class="meta-row">
+      <div class="meta">${parts.join(' · ')}</div>
+      ${whisperHtml}
+    </div>
   `;
 }
 
