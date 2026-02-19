@@ -25,6 +25,7 @@ interface Note {
   name: string;
   path: string;
   filename: string;
+  subfolder?: string;
 }
 
 let sections: Section[] = [];
@@ -501,7 +502,17 @@ function renderNotes(notes: Note[]) {
 
   for (const note of notes) {
     const li = document.createElement('li');
-    li.textContent = note.name;
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'note-name';
+    nameSpan.textContent = note.name;
+    li.appendChild(nameSpan);
+    if (note.subfolder) {
+      const badge = document.createElement('span');
+      badge.className = 'subfolder-badge';
+      badge.textContent = note.subfolder.slice(0, 3);
+      badge.title = note.subfolder;
+      li.appendChild(badge);
+    }
     li.dataset.path = note.path;
     li.draggable = true;
     li.addEventListener('dragstart', (e) => {

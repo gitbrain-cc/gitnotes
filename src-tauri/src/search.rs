@@ -129,10 +129,12 @@ impl SearchIndex {
             .unwrap_or("")
             .to_string();
 
+        // Compute section as first directory after notes root (not sub-folder name)
         let section = path
-            .parent()
-            .and_then(|p| p.file_name())
-            .and_then(|n| n.to_str())
+            .strip_prefix(_notes_root)
+            .ok()
+            .and_then(|rel| rel.components().next())
+            .and_then(|c| c.as_os_str().to_str())
             .unwrap_or("")
             .to_string();
 

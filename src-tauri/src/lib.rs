@@ -46,6 +46,7 @@ pub struct Note {
     pub filename: String,
     pub created: u64,  // Unix timestamp
     pub modified: u64, // Unix timestamp
+    pub subfolder: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -642,18 +643,11 @@ fn list_sections() -> Result<Vec<Section>, String> {
     Ok(sections)
 }
 
-#[tauri::command]
-fn list_notes(section_path: String) -> Result<Vec<Note>, String> {
-    let path = PathBuf::from(&section_path);
-
-    if !path.exists() {
-        return Err(format!("Section not found: {}", section_path));
-    }
-
-    let section_meta = load_section_metadata(&path);
-
-    let mut notes: Vec<Note> = fs::read_dir(&path)
-        .map_err(|e| e.to_string())?
+fn collect_notes_from_dir(dir: &PathBuf, subfolder: Option<String>) -> Vec<Note> {
+    fs::read_dir(dir)
+        .ok()
+        .into_iter()
+        .flatten()
         .filter_map(|entry| {
             let entry = entry.ok()?;
             let path = entry.path();
@@ -701,12 +695,40 @@ fn list_notes(section_path: String) -> Result<Vec<Note>, String> {
                     filename,
                     created,
                     modified,
+                    subfolder: subfolder.clone(),
                 })
             } else {
                 None
             }
         })
-        .collect();
+        .collect()
+}
+
+#[tauri::command]
+fn list_notes(section_path: String) -> Result<Vec<Note>, String> {
+    let path = PathBuf::from(&section_path);
+
+    if !path.exists() {
+        return Err(format!("Section not found: {}", section_path));
+    }
+
+    let section_meta = load_section_metadata(&path);
+
+    // Collect notes from section root
+    let mut notes = collect_notes_from_dir(&path, None);
+
+    // Collect notes from one level of sub-directories
+    if let Ok(entries) = fs::read_dir(&path) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            let sub_path = entry.path();
+            if sub_path.is_dir() {
+                let dir_name = entry.file_name().to_string_lossy().to_string();
+                if !dir_name.starts_with('.') {
+                    notes.extend(collect_notes_from_dir(&sub_path, Some(dir_name)));
+                }
+            }
+        }
+    }
 
     // Sort by preference
     match section_meta.sort.as_str() {
@@ -822,6 +844,7 @@ fn create_note(section_path: String, name: String) -> Result<Note, String> {
         filename,
         created: now_ts,
         modified: now_ts,
+        subfolder: None,
     })
 }
 
@@ -887,6 +910,7 @@ fn create_note_smart(section_path: String) -> Result<Note, String> {
         filename,
         created: now_ts,
         modified: now_ts,
+        subfolder: None,
     })
 }
 
@@ -947,6 +971,7 @@ fn rename_note(old_path: String, new_name: String) -> Result<Note, String> {
         filename: new_filename,
         created,
         modified,
+        subfolder: None,
     })
 }
 
@@ -994,6 +1019,7 @@ fn move_note(path: String, new_section_path: String) -> Result<Note, String> {
         filename,
         created,
         modified,
+        subfolder: None,
     })
 }
 
@@ -1027,17 +1053,33 @@ fn list_all_notes() -> Result<Vec<SearchResult>, String> {
             continue;
         }
 
-        if let Ok(notes) = fs::read_dir(&section_path) {
-            for note_entry in notes.filter_map(|e| e.ok()) {
-                let note_path = note_entry.path();
-                let filename = note_entry.file_name().to_string_lossy().to_string();
+        if let Ok(entries) = fs::read_dir(&section_path) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let entry_path = entry.path();
+                let filename = entry.file_name().to_string_lossy().to_string();
 
-                if note_path.is_file() && filename.ends_with(".md") && !filename.starts_with('.') {
+                if entry_path.is_file() && filename.ends_with(".md") && !filename.starts_with('.') {
                     results.push(SearchResult {
                         name: filename.trim_end_matches(".md").to_string(),
-                        path: note_path.to_string_lossy().to_string(),
+                        path: entry_path.to_string_lossy().to_string(),
                         section: section_name.clone(),
                     });
+                } else if entry_path.is_dir() && !filename.starts_with('.') {
+                    // One level of sub-directory recursion
+                    if let Ok(sub_entries) = fs::read_dir(&entry_path) {
+                        for sub_entry in sub_entries.filter_map(|e| e.ok()) {
+                            let sub_path = sub_entry.path();
+                            let sub_filename = sub_entry.file_name().to_string_lossy().to_string();
+
+                            if sub_path.is_file() && sub_filename.ends_with(".md") && !sub_filename.starts_with('.') {
+                                results.push(SearchResult {
+                                    name: sub_filename.trim_end_matches(".md").to_string(),
+                                    path: sub_path.to_string_lossy().to_string(),
+                                    section: section_name.clone(),
+                                });
+                            }
+                        }
+                    }
                 }
             }
         }

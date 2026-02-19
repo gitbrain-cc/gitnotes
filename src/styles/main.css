@@ -192,6 +192,33 @@ body {
   padding-left: 11px;
 }
 
+/* Note list items with subfolder badges */
+#pages-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.note-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.subfolder-badge {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.6rem;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  background: var(--bg-tertiary);
+  padding: 1px 4px;
+  border-radius: 3px;
+  cursor: default;
+}
+
 /* Section type icons */
 #sections-list li {
   display: flex;

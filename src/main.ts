@@ -28,6 +28,7 @@ interface Note {
   name: string;
   path: string;
   filename: string;
+  subfolder?: string;
 }
 
 interface FileMetadata {
