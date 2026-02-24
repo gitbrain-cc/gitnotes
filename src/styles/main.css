@@ -576,6 +576,89 @@ body {
   max-width: 100%;
 }
 
+/* Tables */
+#editor .ProseMirror table {
+  border-collapse: collapse;
+  width: auto;
+  margin: 0 0 1em 0;
+  font-size: 0.9em;
+}
+
+#editor .ProseMirror th,
+#editor .ProseMirror td {
+  border: 1px solid var(--border-color);
+  padding: 6px 12px;
+  vertical-align: top;
+  min-width: 60px;
+}
+
+#editor .ProseMirror th {
+  background: var(--bg-tertiary);
+  font-weight: 600;
+}
+
+/* Cell selection (prosemirror-tables adds .selectedCell class) */
+#editor .ProseMirror .selectedCell {
+  background: color-mix(in srgb, var(--accent-color) 20%, transparent);
+}
+
+/* Column resize handle */
+#editor .ProseMirror .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--accent-color);
+  pointer-events: none;
+}
+
+/* When resizing, show resize cursor */
+#editor .ProseMirror.resize-cursor {
+  cursor: col-resize;
+}
+
+/* Table context menu */
+.pm-table-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 4px 0;
+  min-width: 180px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.pm-table-menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 14px;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-family-base);
+}
+
+.pm-table-menu-item:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+}
+
+.pm-table-menu-item:disabled {
+  color: var(--text-secondary);
+  cursor: default;
+  opacity: 0.5;
+}
+
+.pm-table-menu-separator {
+  height: 1px;
+  background: var(--border-color);
+  margin: 4px 0;
+}
+
 /* Gap cursor */
 #editor .ProseMirror .ProseMirror-gapcursor {
   position: relative;

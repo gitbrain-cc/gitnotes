@@ -1,6 +1,6 @@
 {
   "name": "gitnotes",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Lightweight markdown notes app",
   "type": "module",
   "scripts": {
@@ -28,6 +28,7 @@
     "prosemirror-model": "^1.25.4",
     "prosemirror-schema-list": "^1.5.1",
     "prosemirror-state": "^1.4.4",
+    "prosemirror-tables": "^1.8.5",
     "prosemirror-view": "^1.41.5"
   }
 }

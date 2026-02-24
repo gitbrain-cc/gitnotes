@@ -1,29 +1,19 @@
 import { EditorState, Plugin, TextSelection, Selection } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { history } from 'prosemirror-history';
-import { defaultMarkdownParser, defaultMarkdownSerializer } from 'prosemirror-markdown';
+import { markdownParser, markdownSerializer } from './editor/markdown';
+import { schema } from './editor/schema';
 import { dropCursor } from 'prosemirror-dropcursor';
 import { gapCursor } from 'prosemirror-gapcursor';
 import { buildKeymap } from './editor/keymap';
 import { buildInputRules } from './editor/input-rules';
+import { tableEditing, columnResizing, goToNextCell, addRowAfter, addRowBefore, addColumnAfter, deleteRow } from 'prosemirror-tables';
+import { keymap } from 'prosemirror-keymap';
+import { buildTableMenuPlugin } from './editor/table-menu';
 
-/**
- * Schema: We use defaultMarkdownParser.schema directly.
- *
- * The parser and serializer are tightly coupled to their schema - node types
- * are compared by reference, not by name. Using a different schema instance
- * (even with identical spec) causes subtle bugs like input rules and keymaps
- * not finding the correct node types.
- *
- * TO EXTEND THE SCHEMA (e.g., tables, task lists):
- * 1. Create custom schema: new Schema({ nodes: {...extended}, marks: {...} })
- * 2. Create custom parser: new MarkdownParser(customSchema, markdownit, tokens)
- * 3. Create custom serializer: new MarkdownSerializer(nodes, marks)
- * 4. Use all three together - they must share the same schema instance
- *
- * See: https://prosemirror.net/docs/ref/#markdown
- */
-const schema = defaultMarkdownParser.schema;
+// Custom schema, parser, and serializer are defined in ./editor/schema.ts and ./editor/markdown.ts
+// All three share the same schema instance (node types compared by reference)
+
 import { buildCursorPlugin, injectCursorStyles, setCursorBlink } from './editor/cursor';
 import { scheduleSave } from './main';
 import { FrontMatter, parseFrontMatter, serializeFrontMatter } from './frontmatter';
@@ -206,6 +196,17 @@ export function initEditor() {
         buildCursorPlugin(),
         dropCursor(),
         gapCursor(),
+        columnResizing(),
+        tableEditing(),
+        buildTableMenuPlugin(),
+        keymap({
+          'Tab': goToNextCell(1),
+          'Shift-Tab': goToNextCell(-1),
+          'Mod-Enter': addRowAfter,
+          'Mod-Shift-Enter': addRowBefore,
+          'Mod-Shift-\\': addColumnAfter,
+          'Mod-Backspace': deleteRow,
+        }),
         savePlugin(),
       ],
     }),
@@ -249,7 +250,7 @@ export function loadContent(content: string, options?: { cursorToStart?: boolean
   const parsed = parseFrontMatter(content);
   currentFrontMatter = parsed.frontmatter;
 
-  const doc = defaultMarkdownParser.parse(parsed.body) || schema.node('doc', null, [schema.node('paragraph')]);
+  const doc = markdownParser.parse(parsed.body) || schema.node('doc', null, [schema.node('paragraph')]);
 
   editorView.updateState(
     EditorState.create({
@@ -280,7 +281,7 @@ export function setEditable(editable: boolean) {
 export function loadWhisperContent(content: string) {
   if (!editorView) return;
   const parsed = parseFrontMatter(content);
-  const doc = defaultMarkdownParser.parse(parsed.body) || schema.node('doc', null, [schema.node('paragraph')]);
+  const doc = markdownParser.parse(parsed.body) || schema.node('doc', null, [schema.node('paragraph')]);
   editorView.updateState(
     EditorState.create({
       doc,
@@ -292,7 +293,7 @@ export function loadWhisperContent(content: string) {
 
 export function getContent(): string {
   if (!editorView) return '';
-  const body = defaultMarkdownSerializer.serialize(editorView.state.doc);
+  const body = markdownSerializer.serialize(editorView.state.doc);
   return serializeFrontMatter(currentFrontMatter, body);
 }
 

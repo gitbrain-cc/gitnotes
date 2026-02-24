@@ -5,8 +5,9 @@ import {
   smartQuotes,
   emDash,
   ellipsis,
+  InputRule,
 } from 'prosemirror-inputrules';
-import { Schema } from 'prosemirror-model';
+import { Fragment, Schema } from 'prosemirror-model';
 import { Plugin } from 'prosemirror-state';
 
 // # Heading → h1, ## → h2, etc.
@@ -52,6 +53,21 @@ function codeBlockRule(schema: Schema) {
   );
 }
 
+// ||| → create a 2x2 table
+function tableRule(schema: Schema) {
+  return new InputRule(/^\|\|\|$/, (state, _match, start, end) => {
+    const headerCell = schema.nodes.table_header?.createAndFill();
+    const dataCell = schema.nodes.table_cell?.createAndFill();
+    if (!headerCell || !dataCell) return null;
+
+    const headerRow = schema.nodes.table_row.create(null, Fragment.from([headerCell, headerCell.copy(headerCell.content)]));
+    const dataRow = schema.nodes.table_row.create(null, Fragment.from([dataCell, dataCell.copy(dataCell.content)]));
+    const table = schema.nodes.table.create(null, Fragment.from([headerRow, dataRow]));
+
+    return state.tr.replaceWith(start - 1, end, table);
+  });
+}
+
 export function buildInputRules(schema: Schema): Plugin {
   return inputRules({
     rules: [
@@ -63,6 +79,7 @@ export function buildInputRules(schema: Schema): Plugin {
       orderedListRule(schema),
       blockquoteRule(schema),
       codeBlockRule(schema),
+      tableRule(schema),
     ],
   });
 }
