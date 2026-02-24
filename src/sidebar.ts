@@ -5,7 +5,7 @@ import {
   loadNoteWithHeader, setSectionMetadata, saveSectionOrder,
   gitCommit, flashCommitted, getCurrentNote
 } from './main';
-import { loadContent, updateHeaderData, focusEditor } from './editor';
+import { loadContent, updateHeaderData, focusEditor, renderContactCard } from './editor';
 import { showContextMenu } from './contextmenu';
 import { initSortMenu, updateSortForSection, getCurrentSort } from './sortmenu';
 import { showColorPicker } from './colorpicker';
@@ -26,6 +26,13 @@ interface Note {
   path: string;
   filename: string;
   subfolder?: string;
+  // Rolodex contact fields
+  contact_title?: string;
+  contact_company?: string;
+  contact_role?: string;
+  contact_email?: string;
+  imported?: string;
+  last_call?: string;
 }
 
 let sections: Section[] = [];
@@ -52,6 +59,7 @@ async function handleDeleteNote(note: Note) {
       } else {
         setCurrentNote(null);
         loadContent('');
+        renderContactCard(null);
         updateHeaderData({ title: '', createdDate: null, modifiedInfo: null });
       }
     }
@@ -341,6 +349,14 @@ function renderSections() {
       li.appendChild(icon);
     }
 
+    const isRolodex = section.section_type === 'rolodex' || section.name === 'rolodex';
+    if (isRolodex) {
+      const icon = document.createElement('span');
+      icon.className = 'section-icon';
+      icon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+      li.appendChild(icon);
+    }
+
     if (section.color) {
       li.dataset.color = section.color;
       li.style.setProperty('--section-color', section.color);
@@ -420,6 +436,7 @@ function renderSections() {
             } else {
               setCurrentNote(null);
               loadContent('');
+              renderContactCard(null);
               updateHeaderData({ title: '', createdDate: null, modifiedInfo: null });
             }
           }
@@ -476,7 +493,8 @@ async function selectSection(section: Section) {
   renderSections();
 
   // Update sort menu for this section
-  await updateSortForSection(section.path);
+  const effectiveType = section.section_type || (section.name === 'rolodex' ? 'rolodex' : undefined);
+  await updateSortForSection(section.path, effectiveType);
 
   const notes = await loadNotes(section.path);
   renderNotes(notes);
@@ -489,9 +507,20 @@ async function selectSection(section: Section) {
   } else {
     setCurrentNote(null);
     loadContent('');
+    renderContactCard(null);
     updateHeaderData({ title: '', createdDate: null, modifiedInfo: null });
     setStatus('No notes in section');
   }
+}
+
+function buildContactSubtitle(note: Note): string | null {
+  if (note.contact_company && note.contact_role) {
+    return `${note.contact_company} · ${note.contact_role}`;
+  }
+  if (note.contact_company) return note.contact_company;
+  if (note.contact_role) return note.contact_role;
+  if (note.contact_email) return note.contact_email;
+  return null;
 }
 
 function renderNotes(notes: Note[]) {
@@ -499,20 +528,43 @@ function renderNotes(notes: Note[]) {
   if (!list) return;
 
   list.innerHTML = '';
+  const isRolodex = currentSection?.section_type === 'rolodex' || currentSection?.name === 'rolodex';
 
   for (const note of notes) {
     const li = document.createElement('li');
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'note-name';
-    nameSpan.textContent = note.name;
-    li.appendChild(nameSpan);
-    if (note.subfolder) {
-      const badge = document.createElement('span');
-      badge.className = 'subfolder-badge';
-      badge.textContent = note.subfolder.slice(0, 3);
-      badge.title = note.subfolder;
-      li.appendChild(badge);
+
+    if (isRolodex && note.contact_title) {
+      // Enhanced rolodex list item
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'note-name';
+      nameSpan.textContent = note.contact_title;
+      li.appendChild(nameSpan);
+
+      const subtitle = buildContactSubtitle(note);
+      if (subtitle) {
+        const subSpan = document.createElement('span');
+        subSpan.className = 'contact-subtitle';
+        subSpan.textContent = subtitle;
+        li.appendChild(subSpan);
+      }
+
+      li.classList.add('rolodex-item');
+    } else {
+      // Standard note list item (existing code)
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'note-name';
+      nameSpan.textContent = note.name;
+      li.appendChild(nameSpan);
+      if (note.subfolder) {
+        const badge = document.createElement('span');
+        badge.className = 'subfolder-badge';
+        badge.textContent = note.subfolder.slice(0, 3);
+        badge.title = note.subfolder;
+        li.appendChild(badge);
+      }
     }
+
+    // Keep ALL existing event listeners (dataset, draggable, dragstart, dragend, click, contextmenu)
     li.dataset.path = note.path;
     li.draggable = true;
     li.addEventListener('dragstart', (e) => {

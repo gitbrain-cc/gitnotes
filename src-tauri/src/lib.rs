@@ -47,6 +47,19 @@ pub struct Note {
     pub created: u64,  // Unix timestamp
     pub modified: u64, // Unix timestamp
     pub subfolder: Option<String>,
+    // Rolodex contact fields (populated only for type: rolodex sections)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contact_title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contact_company: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contact_role: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contact_email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub imported: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_call: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -54,6 +67,24 @@ pub struct Whisper {
     pub character: String,
     pub path: String,
     pub generated: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LabeledValue {
+    pub label: String,
+    pub value: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ContactData {
+    pub title: Option<String>,
+    pub company: Option<String>,
+    pub role: Option<String>,
+    pub emails: Vec<LabeledValue>,
+    pub phones: Vec<LabeledValue>,
+    pub birthday: Option<String>,
+    pub addresses: Vec<LabeledValue>,
+    pub social: Vec<LabeledValue>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -643,7 +674,9 @@ fn list_sections() -> Result<Vec<Section>, String> {
     Ok(sections)
 }
 
-fn collect_notes_from_dir(dir: &PathBuf, subfolder: Option<String>) -> Vec<Note> {
+fn collect_notes_from_dir(dir: &PathBuf, subfolder: Option<String>, section_type: Option<&str>) -> Vec<Note> {
+    let is_rolodex = section_type == Some("rolodex");
+
     fs::read_dir(dir)
         .ok()
         .into_iter()
@@ -655,39 +688,65 @@ fn collect_notes_from_dir(dir: &PathBuf, subfolder: Option<String>) -> Vec<Note>
 
             if path.is_file() && filename.ends_with(".md") && !filename.starts_with('.') {
                 // Try frontmatter first, fall back to filesystem
-                let (created, modified) = if let Ok(content) = fs::read_to_string(&path) {
-                    let (fm, _) = parse_frontmatter(&content);
-                    let fm_created = fm
-                        .as_ref()
-                        .and_then(|f| f.created.as_ref())
-                        .map(|s| iso_to_timestamp(s));
-                    let fm_modified = fm
-                        .as_ref()
-                        .and_then(|f| f.modified.as_ref())
-                        .map(|s| iso_to_timestamp(s));
+                let (created, modified, contact_title, contact_company, contact_role, contact_email, imported, last_call) =
+                    if let Ok(content) = fs::read_to_string(&path) {
+                        let (fm, _) = parse_frontmatter(&content);
+                        let fm_created = fm
+                            .as_ref()
+                            .and_then(|f| f.created.as_ref())
+                            .map(|s| iso_to_timestamp(s));
+                        let fm_modified = fm
+                            .as_ref()
+                            .and_then(|f| f.modified.as_ref())
+                            .map(|s| iso_to_timestamp(s));
 
-                    // Fall back to filesystem if frontmatter missing
-                    let metadata = fs::metadata(&path).ok();
-                    let fs_created = metadata
-                        .as_ref()
-                        .and_then(|m| m.created().ok())
-                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                        .map(|d| d.as_secs())
-                        .unwrap_or(0);
-                    let fs_modified = metadata
-                        .as_ref()
-                        .and_then(|m| m.modified().ok())
-                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                        .map(|d| d.as_secs())
-                        .unwrap_or(0);
+                        // Fall back to filesystem if frontmatter missing
+                        let metadata = fs::metadata(&path).ok();
+                        let fs_created = metadata
+                            .as_ref()
+                            .and_then(|m| m.created().ok())
+                            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                            .map(|d| d.as_secs())
+                            .unwrap_or(0);
+                        let fs_modified = metadata
+                            .as_ref()
+                            .and_then(|m| m.modified().ok())
+                            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                            .map(|d| d.as_secs())
+                            .unwrap_or(0);
 
-                    (
-                        fm_created.unwrap_or(fs_created),
-                        fm_modified.unwrap_or(fs_modified),
-                    )
-                } else {
-                    (0, 0)
-                };
+                        // Extract rolodex contact fields if applicable
+                        let (ct, cc, cr, ce, imp, lc) = if is_rolodex {
+                            if let Some(ref f) = fm {
+                                let other = &f.other;
+                                let title = other.get("title").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                let company = other.get("company").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                let role = other.get("role").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                let email = other.get("emails")
+                                    .and_then(|v| v.as_sequence())
+                                    .and_then(|seq| seq.first())
+                                    .and_then(|item| item.as_mapping())
+                                    .and_then(|map| map.get(serde_yaml::Value::String("value".to_string())))
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string());
+                                let imported_val = other.get("imported").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                let last_call_val = other.get("last_call").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                (title, company, role, email, imported_val, last_call_val)
+                            } else {
+                                (None, None, None, None, None, None)
+                            }
+                        } else {
+                            (None, None, None, None, None, None)
+                        };
+
+                        (
+                            fm_created.unwrap_or(fs_created),
+                            fm_modified.unwrap_or(fs_modified),
+                            ct, cc, cr, ce, imp, lc,
+                        )
+                    } else {
+                        (0, 0, None, None, None, None, None, None)
+                    };
 
                 Some(Note {
                     name: filename.trim_end_matches(".md").to_string(),
@@ -696,6 +755,12 @@ fn collect_notes_from_dir(dir: &PathBuf, subfolder: Option<String>) -> Vec<Note>
                     created,
                     modified,
                     subfolder: subfolder.clone(),
+                    contact_title,
+                    contact_company,
+                    contact_role,
+                    contact_email,
+                    imported,
+                    last_call,
                 })
             } else {
                 None
@@ -713,9 +778,13 @@ fn list_notes(section_path: String) -> Result<Vec<Note>, String> {
     }
 
     let section_meta = load_section_metadata(&path);
+    // Fallback: detect rolodex by directory name if type not set in .section.md
+    let section_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+    let section_type = section_meta.section_type.as_deref()
+        .or_else(|| if section_name == "rolodex" { Some("rolodex") } else { None });
 
     // Collect notes from section root
-    let mut notes = collect_notes_from_dir(&path, None);
+    let mut notes = collect_notes_from_dir(&path, None, section_type);
 
     // Collect notes from one level of sub-directories
     if let Ok(entries) = fs::read_dir(&path) {
@@ -724,21 +793,58 @@ fn list_notes(section_path: String) -> Result<Vec<Note>, String> {
             if sub_path.is_dir() {
                 let dir_name = entry.file_name().to_string_lossy().to_string();
                 if !dir_name.starts_with('.') {
-                    notes.extend(collect_notes_from_dir(&sub_path, Some(dir_name)));
+                    notes.extend(collect_notes_from_dir(&sub_path, Some(dir_name), section_type));
                 }
             }
         }
     }
 
+    // Sort helper: use contact_title for rolodex, fall back to name
+    let sort_name = |note: &Note| -> String {
+        note.contact_title.as_deref().unwrap_or(&note.name).to_lowercase()
+    };
+
     // Sort by preference
     match section_meta.sort.as_str() {
         "alpha-desc" | "name-desc" => {
-            notes.sort_by(|a, b| b.name.to_lowercase().cmp(&a.name.to_lowercase()))
+            notes.sort_by(|a, b| sort_name(b).cmp(&sort_name(a)))
         }
         "created-asc" => notes.sort_by(|a, b| a.created.cmp(&b.created)),
         "created-desc" => notes.sort_by(|a, b| b.created.cmp(&a.created)),
         "modified-asc" => notes.sort_by(|a, b| a.modified.cmp(&b.modified)),
         "modified-desc" => notes.sort_by(|a, b| b.modified.cmp(&a.modified)),
+        "imported-asc" => notes.sort_by(|a, b| {
+            match (&a.imported, &b.imported) {
+                (Some(a_val), Some(b_val)) => a_val.cmp(b_val),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => sort_name(a).cmp(&sort_name(b)),
+            }
+        }),
+        "imported-desc" => notes.sort_by(|a, b| {
+            match (&a.imported, &b.imported) {
+                (Some(a_val), Some(b_val)) => b_val.cmp(a_val),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => sort_name(a).cmp(&sort_name(b)),
+            }
+        }),
+        "lastcall-asc" => notes.sort_by(|a, b| {
+            match (&a.last_call, &b.last_call) {
+                (Some(a_val), Some(b_val)) => a_val.cmp(b_val),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => sort_name(a).cmp(&sort_name(b)),
+            }
+        }),
+        "lastcall-desc" => notes.sort_by(|a, b| {
+            match (&a.last_call, &b.last_call) {
+                (Some(a_val), Some(b_val)) => b_val.cmp(a_val),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => sort_name(a).cmp(&sort_name(b)),
+            }
+        }),
         "manual" if !section_meta.order.is_empty() => {
             notes.sort_by(|a, b| {
                 let a_idx = section_meta.order.iter().position(|x| x == &a.filename);
@@ -747,11 +853,11 @@ fn list_notes(section_path: String) -> Result<Vec<Note>, String> {
                     (Some(ai), Some(bi)) => ai.cmp(&bi),
                     (Some(_), None) => std::cmp::Ordering::Less,
                     (None, Some(_)) => std::cmp::Ordering::Greater,
-                    (None, None) => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+                    (None, None) => sort_name(a).cmp(&sort_name(b)),
                 }
             });
         }
-        _ => notes.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase())), // alpha-asc default
+        _ => notes.sort_by(|a, b| sort_name(a).cmp(&sort_name(b))), // alpha-asc default
     }
 
     // Move pinned to top
@@ -845,6 +951,12 @@ fn create_note(section_path: String, name: String) -> Result<Note, String> {
         created: now_ts,
         modified: now_ts,
         subfolder: None,
+        contact_title: None,
+        contact_company: None,
+        contact_role: None,
+        contact_email: None,
+        imported: None,
+        last_call: None,
     })
 }
 
@@ -911,6 +1023,12 @@ fn create_note_smart(section_path: String) -> Result<Note, String> {
         created: now_ts,
         modified: now_ts,
         subfolder: None,
+        contact_title: None,
+        contact_company: None,
+        contact_role: None,
+        contact_email: None,
+        imported: None,
+        last_call: None,
     })
 }
 
@@ -972,6 +1090,12 @@ fn rename_note(old_path: String, new_name: String) -> Result<Note, String> {
         created,
         modified,
         subfolder: None,
+        contact_title: None,
+        contact_company: None,
+        contact_role: None,
+        contact_email: None,
+        imported: None,
+        last_call: None,
     })
 }
 
@@ -1020,6 +1144,12 @@ fn move_note(path: String, new_section_path: String) -> Result<Note, String> {
         created,
         modified,
         subfolder: None,
+        contact_title: None,
+        contact_company: None,
+        contact_role: None,
+        contact_email: None,
+        imported: None,
+        last_call: None,
     })
 }
 
@@ -2505,6 +2635,60 @@ fn get_default_vault_path(name: String) -> Result<String, String> {
     Ok(path.to_string_lossy().to_string())
 }
 
+#[tauri::command]
+fn get_contact_data(note_path: String) -> Result<Option<ContactData>, String> {
+    let path = PathBuf::from(&note_path);
+
+    // Check if note is in a rolodex section by checking parent dir's .section.md
+    let parent = path.parent().ok_or("No parent directory")?;
+    let section_meta = load_section_metadata(&PathBuf::from(parent));
+    let parent_name = parent.file_name().and_then(|n| n.to_str()).unwrap_or("");
+    let is_rolodex = section_meta.section_type.as_deref() == Some("rolodex") || parent_name == "rolodex";
+    if !is_rolodex {
+        return Ok(None);
+    }
+
+    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let (fm, _) = parse_frontmatter(&content);
+    let fm = match fm {
+        Some(f) => f,
+        None => return Ok(None),
+    };
+
+    let other = &fm.other;
+
+    // Helper to extract Vec<LabeledValue> from a YAML sequence of mappings
+    fn extract_labeled_values(other: &std::collections::HashMap<String, serde_yaml::Value>, key: &str) -> Vec<LabeledValue> {
+        other.get(key)
+            .and_then(|v| v.as_sequence())
+            .map(|seq| {
+                seq.iter().filter_map(|item| {
+                    let mapping = item.as_mapping()?;
+                    let label = mapping.get(serde_yaml::Value::String("label".into()))?.as_str()?;
+                    let value = mapping.get(serde_yaml::Value::String("value".into()))?.as_str()?;
+                    Some(LabeledValue { label: label.to_string(), value: value.to_string() })
+                }).collect()
+            })
+            .unwrap_or_default()
+    }
+
+    let contact = ContactData {
+        title: other.get("title").and_then(|v| v.as_str()).map(String::from),
+        company: other.get("company").and_then(|v| v.as_str()).map(String::from),
+        role: other.get("role").and_then(|v| v.as_str()).map(String::from),
+        emails: extract_labeled_values(other, "emails"),
+        phones: extract_labeled_values(other, "phones"),
+        birthday: other.get("birthday").map(|v| {
+            v.as_str().map(String::from)
+                .unwrap_or_else(|| serde_yaml::to_string(v).unwrap_or_default().trim().to_string())
+        }).and_then(|s| if s.is_empty() { None } else { Some(s) }),
+        addresses: extract_labeled_values(other, "addresses"),
+        social: extract_labeled_values(other, "social"),
+    };
+
+    Ok(Some(contact))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let notes_path = get_notes_path();
@@ -2519,7 +2703,6 @@ pub fn run() {
         SearchIndex::new(&index_path, &notes_path).expect("Failed to create search index"),
     );
 
-    // Start file watcher
     SearchIndex::start_watcher(Arc::clone(&search_index), notes_path.clone())
         .expect("Failed to start file watcher");
 
@@ -2632,6 +2815,7 @@ pub fn run() {
             get_default_clone_path,
             create_vault,
             get_default_vault_path,
+            get_contact_data,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

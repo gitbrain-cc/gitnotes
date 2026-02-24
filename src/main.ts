@@ -6,7 +6,8 @@ import {
   initEditor, getContent, focusEditor, getWordCount, updateHeaderData, loadContent,
   loadWhisperContent, setEditable,
   getCursorPosition, getScrollTop, getViewportHeight, getContentUpToCursor,
-  setCursorPosition, setScrollTop
+  setCursorPosition, setScrollTop,
+  renderContactCard, ContactData
 } from './editor';
 import { recordEdit, recordSave, recordCommit, startEvalLoop, triggerImmediateCommit } from './commit-engine';
 import { initSearchBar, openSearchBar, loadAllNotes, closeSearchBar, isSearchBarOpen, addRecentFile } from './search-bar';
@@ -291,9 +292,18 @@ export async function loadNoteWithHeader(note: Note) {
     : null;
   const modifiedInfo = buildModifiedInfo(gitInfo, currentFrontMatter.created ?? null);
 
+  // Load contact card data if in rolodex section
+  let contactData: ContactData | null = null;
+  try {
+    contactData = await invoke<ContactData | null>('get_contact_data', { notePath: note.path });
+  } catch {
+    // Not a rolodex note or error
+  }
+  renderContactCard(contactData);
+
   // Load content into editor (full content with front matter - editor will hide it)
   const fullContent = serializeFrontMatter(currentFrontMatter, currentBody);
-  loadContent(fullContent);
+  loadContent(fullContent, { cursorToStart: !!contactData });
 
   updateWordCount();
 

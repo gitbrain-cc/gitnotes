@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 
-type SortType = 'alpha' | 'created' | 'modified';
+type SortType = 'alpha' | 'created' | 'modified' | 'imported' | 'lastcall';
 type SortDirection = 'asc' | 'desc';
 
 interface SortState {
@@ -28,6 +28,8 @@ function parseSortString(sortStr: string): SortState {
     'name': 'alpha',
     'created': 'created',
     'modified': 'modified',
+    'imported': 'imported',
+    'lastcall': 'lastcall',
   };
 
   return {
@@ -94,8 +96,14 @@ async function handleOptionClick(sortType: SortType) {
   }
 }
 
-export async function updateSortForSection(sectionPath: string) {
+export async function updateSortForSection(sectionPath: string, sectionType?: string) {
   currentSectionPath = sectionPath;
+
+  // Toggle rolodex-only sort options visibility
+  const rolodexOptions = document.querySelectorAll('.rolodex-sort');
+  rolodexOptions.forEach(el => {
+    (el as HTMLElement).style.display = sectionType === 'rolodex' ? '' : 'none';
+  });
 
   try {
     const sortStr = await getSortPreference(sectionPath);

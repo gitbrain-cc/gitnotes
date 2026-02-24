@@ -296,13 +296,21 @@ impl SearchIndex {
         std::thread::spawn(move || {
             let (tx, rx) = std::sync::mpsc::channel();
 
-            let mut debouncer =
-                new_debouncer(Duration::from_millis(500), tx).expect("Failed to create debouncer");
+            let mut debouncer = match new_debouncer(Duration::from_millis(500), tx) {
+                Ok(d) => d,
+                Err(e) => {
+                    eprintln!("Failed to create debouncer: {}", e);
+                    return;
+                }
+            };
 
-            debouncer
+            if let Err(e) = debouncer
                 .watcher()
                 .watch(&notes_path, notify::RecursiveMode::Recursive)
-                .expect("Failed to watch directory");
+            {
+                eprintln!("Failed to watch directory {:?}: {}", notes_path, e);
+                return;
+            }
 
             for result in rx {
                 match result {

@@ -206,6 +206,24 @@ body {
   min-width: 0;
 }
 
+/* Rolodex contact list items */
+#pages-list li.rolodex-item {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.contact-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
 .subfolder-badge {
   margin-left: auto;
   flex-shrink: 0;
@@ -345,6 +363,67 @@ body {
   background: transparent;
   border-color: var(--accent-color);
   color: var(--accent-color);
+}
+
+/* Contact card */
+#contact-card {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+#contact-card.hidden {
+  display: none;
+}
+
+.contact-card-inner {
+  max-width: 600px;
+}
+
+.contact-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.contact-company {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.contact-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.contact-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.857rem;
+  color: var(--text-primary);
+}
+
+.contact-field-icon {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.contact-link {
+  color: var(--accent-color);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.contact-link:hover {
+  text-decoration: underline;
+}
+
+.contact-label {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
 }
 
 #editor {
