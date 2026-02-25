@@ -54,6 +54,14 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
+      - name: Rename DMG to stable filename
+        run: |
+          DMG_DIR="src-tauri/target/release/bundle/dmg"
+          VERSIONED_DMG=$(ls ${DMG_DIR}/*.dmg 2>/dev/null | head -1)
+          if [ -n "$VERSIONED_DMG" ]; then
+            cp "$VERSIONED_DMG" "${DMG_DIR}/GitNotes_aarch64.dmg"
+          fi
+
       - name: Generate latest.json
         run: |
           # Find the generated files
@@ -116,7 +124,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            GitNotes-macOS/**/*.dmg
+            GitNotes-macOS/**/GitNotes_aarch64.dmg
             GitNotes-macOS/**/*.tar.gz
             GitNotes-macOS/latest.json
           draft: true
