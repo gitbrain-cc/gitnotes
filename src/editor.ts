@@ -1,5 +1,5 @@
-import { EditorState, Plugin, TextSelection, Selection } from 'prosemirror-state';
-import { EditorView } from 'prosemirror-view';
+import { EditorState, Plugin, PluginKey, TextSelection, Selection } from 'prosemirror-state';
+import { EditorView, Decoration, DecorationSet } from 'prosemirror-view';
 import { history } from 'prosemirror-history';
 import { markdownParser, markdownSerializer } from './editor/markdown';
 import { schema } from './editor/schema';
@@ -141,6 +141,64 @@ export function renderContactCard(data: ContactData | null) {
 let editorView: EditorView | null = null;
 let currentFrontMatter: FrontMatter = {};
 
+// Find state for in-note match cycling
+export interface FindMatch {
+  from: number;
+  to: number;
+  lineNumber: number;
+  snippet: string;
+}
+
+let findState: {
+  term: string;
+  matches: FindMatch[];
+  currentIndex: number;
+} | null = null;
+
+let onFindStateChange: (() => void) | null = null;
+
+// Find highlights plugin — shows all matches with a background color
+const findHighlightKey = new PluginKey('findHighlight');
+
+function buildFindHighlightPlugin(): Plugin {
+  return new Plugin({
+    key: findHighlightKey,
+    state: {
+      init() { return DecorationSet.empty; },
+      apply(tr, decorations) {
+        // Decorations are rebuilt externally via setFindHighlights
+        const meta = tr.getMeta(findHighlightKey);
+        if (meta !== undefined) return meta;
+        return decorations.map(tr.mapping, tr.doc);
+      },
+    },
+    props: {
+      decorations(state) {
+        return findHighlightKey.getState(state);
+      },
+    },
+  });
+}
+
+function buildFindDecoSet(doc: import('prosemirror-model').Node): DecorationSet {
+  if (!findState || findState.matches.length === 0) return DecorationSet.empty;
+  const decorations: Decoration[] = [];
+  for (let i = 0; i < findState.matches.length; i++) {
+    const m = findState.matches[i];
+    if (m.from < 0 || m.to > doc.content.size) continue;
+    const cls = i === findState.currentIndex ? 'find-highlight-active' : 'find-highlight';
+    decorations.push(Decoration.inline(m.from, m.to, { class: cls }));
+  }
+  return decorations.length > 0 ? DecorationSet.create(doc, decorations) : DecorationSet.empty;
+}
+
+function updateFindHighlights(): void {
+  if (!editorView) return;
+  editorView.dispatch(
+    editorView.state.tr.setMeta(findHighlightKey, buildFindDecoSet(editorView.state.doc))
+  );
+}
+
 // Header data that will be displayed
 export interface HeaderData {
   title: string;
@@ -167,6 +225,7 @@ function savePlugin(): Plugin {
         update(view, prevState) {
           if (!view.state.doc.eq(prevState.doc)) {
             scheduleSave();
+            clearFindState();
           }
         },
       };
@@ -208,6 +267,7 @@ export function initEditor() {
           'Mod-Backspace': deleteRow,
         }),
         savePlugin(),
+        buildFindHighlightPlugin(),
       ],
     }),
     attributes: {
@@ -433,4 +493,102 @@ export function setCursorPosition(pos: number) {
 export function setScrollTop(top: number) {
   if (!editorView) return;
   editorView.dom.scrollTop = top;
+}
+
+export function scanDocForMatches(term: string): FindMatch[] {
+  if (!editorView || !term) return [];
+  const doc = editorView.state.doc;
+  const matches: FindMatch[] = [];
+  const lowerTerm = term.toLowerCase();
+
+  doc.descendants((node, pos) => {
+    if (node.isText && node.text) {
+      const text = node.text;
+      const lowerText = text.toLowerCase();
+      let searchFrom = 0;
+      while (searchFrom < lowerText.length) {
+        const idx = lowerText.indexOf(lowerTerm, searchFrom);
+        if (idx === -1) break;
+        const from = pos + idx;
+        const to = from + term.length;
+
+        // Calculate line number
+        let lineNumber = 0;
+        doc.nodesBetween(0, from, (n) => {
+          if (n.isBlock) lineNumber++;
+          return true;
+        });
+
+        // Build snippet (surrounding text)
+        const blockStart = Math.max(0, idx - 30);
+        const blockEnd = Math.min(text.length, idx + term.length + 30);
+        let snippet = text.slice(blockStart, blockEnd);
+        if (blockStart > 0) snippet = '...' + snippet;
+        if (blockEnd < text.length) snippet = snippet + '...';
+
+        matches.push({ from, to, lineNumber, snippet });
+        searchFrom = idx + 1;
+      }
+    }
+  });
+
+  return matches;
+}
+
+export function setFindState(term: string, matches: FindMatch[], index: number = 0): void {
+  findState = { term, matches, currentIndex: index };
+  if (matches.length > 0 && index < matches.length) {
+    selectMatch(matches[index]); // handles decorations + selection + scroll in one transaction
+  } else {
+    updateFindHighlights();
+  }
+  onFindStateChange?.();
+}
+
+export function clearFindState(): void {
+  findState = null;
+  updateFindHighlights();
+  onFindStateChange?.();
+}
+
+export function getFindState() {
+  return findState;
+}
+
+export function onFindStateChanged(cb: () => void): void {
+  onFindStateChange = cb;
+}
+
+function selectMatch(match: FindMatch): void {
+  if (!editorView) return;
+  const { from, to } = match;
+  const doc = editorView.state.doc;
+  if (from >= 0 && to <= doc.content.size) {
+    const view = editorView;
+    // Focus first so browser scroll happens before our scroll
+    view.focus();
+    // Then dispatch selection + decorations + scroll in one transaction
+    requestAnimationFrame(() => {
+      view.dispatch(
+        view.state.tr
+          .setMeta(findHighlightKey, buildFindDecoSet(view.state.doc))
+          .setSelection(TextSelection.create(view.state.doc, from, to))
+          .scrollIntoView()
+      );
+    });
+  }
+}
+
+export function findNext(): void {
+  if (!findState || findState.matches.length === 0) return;
+  findState.currentIndex = (findState.currentIndex + 1) % findState.matches.length;
+  selectMatch(findState.matches[findState.currentIndex]);
+  onFindStateChange?.();
+}
+
+export function findPrev(): void {
+  if (!findState || findState.matches.length === 0) return;
+  findState.currentIndex = (findState.currentIndex - 1 + findState.matches.length) % findState.matches.length;
+  selectMatch(findState.matches[findState.currentIndex]);
+  onFindStateChange?.();
 }

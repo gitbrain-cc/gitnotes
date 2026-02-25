@@ -980,6 +980,54 @@ body.git-view-active #search-container {
   margin-right: 8px;
 }
 
+/* In-note match results */
+.in-note-match .result-header {
+  gap: 12px;
+}
+
+.result-line-number {
+  font-size: 0.786rem;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  flex-shrink: 0;
+  min-width: 50px;
+}
+
+.in-note-match .result-snippet {
+  margin-top: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Find match highlights in editor */
+.find-highlight {
+  background: color-mix(in srgb, var(--accent-color) 25%, var(--bg-tertiary));
+  border-radius: 2px;
+}
+
+.find-highlight-active {
+  background: var(--accent-color);
+  color: var(--bg-primary);
+  border-radius: 2px;
+}
+
+/* Find info badge inside search input */
+#find-info {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  font-size: 0.786rem;
+  pointer-events: none;
+  z-index: 1;
+}
+
+#search-container.active #find-info {
+  top: 21px; /* vertically center within input when dropdown is open */
+}
+
 /* Context Menu */
 .context-menu {
   position: fixed;

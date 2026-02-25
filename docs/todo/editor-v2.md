@@ -65,20 +65,6 @@ Allow cursor to be centered when at document end.
 
 ---
 
-## Markdown Source Mode
-
-**Priority:** Low | **Effort:** High
-
-Toggle between rich ProseMirror view and raw markdown source editing.
-
-**Options:**
-1. Dual-editor approach (PM for rich, CM6 for source)
-2. Single source-of-truth with view toggle
-
-**Trade-off:** Adds complexity, but some users prefer raw markdown editing.
-
----
-
 ## Table Support
 
 **Priority:** Low | **Effort:** Medium
@@ -87,28 +73,6 @@ ProseMirror has `prosemirror-tables` for table editing. Would require:
 1. Extend schema with table nodes
 2. Add table input rules or toolbar
 3. Extend markdown serializer
-
----
-
-## Image Paste/Drop
-
-**Priority:** Medium | **Effort:** Medium
-
-Handle pasted/dropped images:
-1. Save to vault assets folder
-2. Insert markdown image reference
-3. Handle clipboard and drag events
-
----
-
-## Task Lists (Checkboxes)
-
-**Priority:** Medium | **Effort:** Low
-
-Support `- [ ]` and `- [x]` checkbox syntax:
-1. Extend schema with checkbox mark or node
-2. Add input rule for `- [ ] `
-3. Handle click to toggle
 
 ---
 

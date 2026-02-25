@@ -7,10 +7,11 @@ import {
   loadWhisperContent, setEditable,
   getCursorPosition, getScrollTop, getViewportHeight, getContentUpToCursor,
   setCursorPosition, setScrollTop,
-  renderContactCard, ContactData
+  renderContactCard, ContactData,
+  findNext, findPrev, clearFindState, getFindState, onFindStateChanged
 } from './editor';
 import { recordEdit, recordSave, recordCommit, startEvalLoop, triggerImmediateCommit } from './commit-engine';
-import { initSearchBar, openSearchBar, loadAllNotes, closeSearchBar, isSearchBarOpen, addRecentFile } from './search-bar';
+import { initSearchBar, openSearchBar, loadAllNotes, closeSearchBar, isSearchBarOpen, addRecentFile, setCurrentNotePath } from './search-bar';
 import { parseFrontMatter, serializeFrontMatter, FrontMatter } from './frontmatter';
 import { initGitStatus, refreshGitStatus, isTeamRepo } from './git-status';
 import { initSettings, isSettingsOpen, closeSettings, getTheme, applyTheme, getEditorSettings, applyEditorSettings, getAutoCommit } from './settings';
@@ -260,8 +261,10 @@ export async function loadNoteWithHeader(note: Note) {
   activeWhisper = null;
   currentWhispers = [];
   setEditable(true);
+  clearFindState();
 
   currentNote = note;
+  setCurrentNotePath(note.path);
 
   // Read raw content
   const rawContent = await readNote(note.path);
@@ -467,12 +470,36 @@ function setupKeyboardShortcuts() {
       openCommitModal();
     }
 
-    // Cmd+P or Cmd+Shift+F: Search bar
+    // Cmd+F: Focus search bar
+    if (e.metaKey && !e.shiftKey && e.key === 'f') {
+      e.preventDefault();
+      if (!isSearchBarOpen()) {
+        openSearchBar(handleSearchSelect);
+      } else {
+        const input = document.getElementById('search-input') as HTMLInputElement;
+        input?.focus();
+        input?.select();
+      }
+    }
+
+    // Cmd+P or Cmd+Shift+F: Search bar (legacy)
     if (e.metaKey && (e.key === 'p' || (e.shiftKey && e.key === 'f'))) {
       e.preventDefault();
       if (!isSearchBarOpen()) {
         openSearchBar(handleSearchSelect);
       }
+    }
+
+    // Cmd+G: Next match
+    if (e.metaKey && !e.shiftKey && e.key === 'g') {
+      e.preventDefault();
+      findNext();
+    }
+
+    // Cmd+Shift+G: Previous match
+    if (e.metaKey && e.shiftKey && e.key === 'g') {
+      e.preventDefault();
+      findPrev();
     }
 
     // Cmd+1: Focus editor
@@ -499,6 +526,8 @@ function setupKeyboardShortcuts() {
         exitGitMode();
       } else if (isSearchBarOpen()) {
         closeSearchBar();
+      } else if (getFindState()) {
+        clearFindState();
       }
     }
   });
@@ -540,6 +569,24 @@ async function init() {
     initSettings();
     initCommitModal();
     setupKeyboardShortcuts();
+
+    // Find state status bar indicator + search input sync
+    onFindStateChanged(() => {
+      const findInfo = document.getElementById('find-info');
+      const searchInput = document.getElementById('search-input') as HTMLInputElement;
+      if (!findInfo) return;
+      const state = getFindState();
+      if (state && state.matches.length > 0) {
+        findInfo.textContent = `${state.currentIndex + 1}/${state.matches.length} matches \u00b7 \u2318G next`;
+      } else {
+        findInfo.textContent = '';
+        // Clear search input when find state clears
+        if (searchInput && searchInput.value && !isSearchBarOpen()) {
+          searchInput.value = '';
+        }
+      }
+    });
+
     // Read last session before sidebar init so we can restore the right section
     const settings: any = await invoke('get_settings');
     const lastSession = settings.last_session;

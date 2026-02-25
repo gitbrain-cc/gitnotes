@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { exitGitMode } from './git-view';
+import { scanDocForMatches, setFindState, FindMatch } from './editor';
 
 interface SearchResult {
   path: string;
@@ -22,6 +23,8 @@ let currentResults: (SearchResult | NoteInfo)[] = [];
 let allNotes: NoteInfo[] = [];
 let recentFiles: string[] = [];
 let recentSearches: string[] = [];
+let currentNotePath: string | null = null;
+let inNoteMatches: FindMatch[] = [];
 let onSelectCallback: ((result: SearchResult | NoteInfo, matchLine?: number, searchTerm?: string) => void) | null = null;
 let defaultSelectCallback: ((result: SearchResult | NoteInfo, matchLine?: number, searchTerm?: string) => void) | null = null;
 
@@ -50,6 +53,10 @@ function addRecentSearch(query: string): void {
   recentSearches.unshift(query);
   recentSearches = recentSearches.slice(0, MAX_RECENT_SEARCHES);
   localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recentSearches));
+}
+
+export function setCurrentNotePath(path: string | null): void {
+  currentNotePath = path;
 }
 
 function loadRecentData(): void {
@@ -175,6 +182,37 @@ function renderDropdown(query: string): void {
     recentSearchesSection.style.display = 'none';
     resultsSection.style.display = 'block';
 
+    // Scan current note for matches (client-side)
+    inNoteMatches = [];
+    if (currentNotePath && query.length >= MIN_CONTENT_SEARCH_LENGTH) {
+      inNoteMatches = scanDocForMatches(query);
+    }
+
+    // Render "In This Note" group
+    if (inNoteMatches.length > 0) {
+      const header = document.createElement('li');
+      header.className = 'results-group-header';
+      header.textContent = 'In This Note';
+      resultsList.appendChild(header);
+
+      inNoteMatches.forEach((match, matchIdx) => {
+        const li = document.createElement('li');
+        li.className = 'in-note-match';
+        li.innerHTML = `
+          <div class="result-header">
+            <span class="result-line-number">line ${match.lineNumber}</span>
+            <span class="result-snippet">${highlightMatch(match.snippet, query)}</span>
+          </div>
+        `;
+        li.addEventListener('click', () => {
+          addRecentSearch(query);
+          closeSearchDropdown();
+          setFindState(query, inNoteMatches, matchIdx);
+        });
+        resultsList.appendChild(li);
+      });
+    }
+
     // Separate filename matches from content matches
     const filenameMatches: { result: SearchResult | NoteInfo; index: number }[] = [];
     const contentMatches: { result: SearchResult | NoteInfo; index: number }[] = [];
@@ -232,7 +270,7 @@ function renderDropdown(query: string): void {
       });
     }
 
-    if (currentResults.length === 0) {
+    if (currentResults.length === 0 && inNoteMatches.length === 0) {
       resultsList.innerHTML = '<li class="no-results">No results found</li>';
     }
   }
@@ -303,6 +341,21 @@ export function closeSearchBar(): void {
   }
 }
 
+// Close dropdown only — keep search term visible in input
+export function closeSearchDropdown(): void {
+  isOpen = false;
+  onSelectCallback = null;
+
+  const container = document.getElementById('search-container');
+  const input = document.getElementById('search-input') as HTMLInputElement;
+  if (container) {
+    container.classList.remove('active');
+  }
+  if (input) {
+    input.blur();
+  }
+}
+
 export function isSearchBarOpen(): boolean {
   return isOpen;
 }
@@ -339,7 +392,7 @@ export function initSearchBar(onSelect?: (result: SearchResult | NoteInfo, match
 
         // Combine: filename matches first, then content matches (deduplicated)
         const seenPaths = new Set(filenameMatches.map(p => p.path));
-        const uniqueContentMatches = contentMatches.filter(r => !seenPaths.has(r.path));
+        const uniqueContentMatches = contentMatches.filter(r => !seenPaths.has(r.path) && r.path !== currentNotePath);
 
         currentResults = [...filenameMatches, ...uniqueContentMatches];
         renderDropdown(query);
